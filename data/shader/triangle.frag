@@ -8,5 +8,5 @@ uniform float time;
 
 void main()
 {
-    fragColor = vec4(time / 30 * color, 1.0);
+    fragColor = vec4(time / 10 * color, 1.0);
 }

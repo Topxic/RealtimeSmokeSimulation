@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(blob)
+set(PROJECT_TITLE "hello-triangle")
+project(${PROJECT_TITLE})
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
@@ -14,17 +15,17 @@ find_package(OpenGL REQUIRED)
 find_package(GLEW REQUIRED)
 
 include_directories(
-        inc
         ${OPENGL_INCLUDE_DIR}
         ${GLEW_INCLUDE_DIRS}
         external/glm/glm
 )
 
 file(GLOB SOURCES src/*.cpp)
-add_executable(blob ${SOURCES} inc/shader.hpp)
+file(GLOB HEADERS src/*.hpp)
+add_executable(${PROJECT_TITLE} ${SOURCES} ${HEADERS})
 
 target_link_libraries(
-        blob
+        ${PROJECT_TITLE}
         glfw
         ${OPENGL_LIBRARIES}
         ${GLEW_LIBRARIES}
