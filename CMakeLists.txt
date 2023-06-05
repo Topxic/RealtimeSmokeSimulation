@@ -3,7 +3,7 @@ set(PROJECT_TITLE "mandelbulb")
 project(${PROJECT_TITLE})
 
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Werror -Wall -Wno-long-long -pedantic")
 
 # Build GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)

@@ -22,18 +22,19 @@ std::unique_ptr<GUI> gui;
 static void init()
 {
     // Change the current directory to the directory of the executable
-    chdir("..");
-    char cwd[1024];
-    getcwd(cwd, sizeof(cwd));
-    printf("Current working directory: %s\n", cwd);
+    if (chdir("..") != 0)
+    {
+        std::cerr << "Failed to change directory" << std::endl;
+        exit(EXIT_FAILURE);
+    }
     
     // start GLEW extension handler
     glewInit();
     // get version info
     const GLubyte *renderer = glGetString(GL_RENDERER); // get renderer string
     const GLubyte *version = glGetString(GL_VERSION);   // version as a string
-    printf("Renderer: %s\n", renderer);
-    printf("OpenGL version supported %s\n", version);
+    std::cout << "Renderer: " << renderer << std::endl;
+    std::cout << "OpenGL version supported: " << version << std::endl;
 }
 
 int main()
