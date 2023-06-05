@@ -10,6 +10,13 @@
 class BaseControls
 {
 public:
+    /**
+     * @brief Enable or disable the controls.
+     *
+     *  If the controls are disabled, the camera will not be updated based on mouse and keyboard inputs. 
+     *
+     * @param enabled Whether the controls should be enabled or not.
+     */
     void setEnabled(bool enabled);
 
     const bool getEnabled() const;
@@ -20,6 +27,15 @@ public:
 
     glm::vec3 getCameraUp() const;
 
+    /**
+     * @brief Update the camera position and direction based on mouse and keyboard inputs.
+     * 
+     * This function should be called every frame. 
+     * It will update the camera position and direction based on mouse and keyboard inputs.
+     * Each control class implements this function differently.
+     *
+     * @param deltaTime The time since the last update.
+     */
     virtual void update(float deltaTime) = 0;
 
 protected:
@@ -43,7 +59,7 @@ protected:
     BaseControls();
 
 private:
-    static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+    static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
 
     static void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
 

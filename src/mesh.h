@@ -18,6 +18,12 @@ public:
 
     ~Mesh();
 
+    /**
+     * @brief Draw the mesh
+     * 
+     * This function should be called in the rendering loop.
+     * It will draw the mesh using the current binded shader.
+    */
     void draw();
 
 private:

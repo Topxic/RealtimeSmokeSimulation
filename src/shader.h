@@ -10,16 +10,37 @@ class Shader
 public:
     explicit Shader(const std::string &name);
 
+    /**
+     * @brief Reload the shader
+     * 
+     * Reloads the shader source code and recompiles it. 
+     * If the reload fails, the old shader will be used and
+     * an error message will be printed to the console.
+    */
     void reload();
 
+    /**
+     * @brief Create the shader
+     * 
+     * Creates the shader from the source code.
+    */
     void create();
 
     ~Shader();
 
-    // Use the shader program
+    /**
+     * @brief Bind the shader
+     * 
+     * Bind the shader to the current OpenGL context.
+     * Every draw call or uniform update after this function will use this shader.
+    */
     void bind();
 
-    // Stop using the shader program
+    /**
+     * @brief Unbind the shader
+     * 
+     * Unbind the shader from the current OpenGL context.
+    */
     void unbind();
 
     void setUniform(const std::string &name, int value) const;
