@@ -15,9 +15,19 @@
 
 #include <iostream>
 
-std::unique_ptr<Shader> mandelbulbShader;
+std::unique_ptr<Shader> applyGravityShader;
+std::unique_ptr<Shader> forceIncompressibility;
+std::unique_ptr<Shader> extrapolate;
+std::unique_ptr<Shader> advectVelocities;
+std::unique_ptr<Shader> copyVelocityBuffer;
+std::unique_ptr<Shader> advectSmoke;
+std::unique_ptr<Shader> copySmokeBuffer;
+std::unique_ptr<Shader> smokeRenderShader;
+
 std::unique_ptr<Mesh> screenQuad;
-std::unique_ptr<GUI> gui;
+std::unique_ptr<SmokeGUI> gui;
+
+const auto simulationDimension = glm::vec2(300);
 
 static void init()
 {
@@ -27,7 +37,7 @@ static void init()
         std::cerr << "Failed to change directory" << std::endl;
         exit(EXIT_FAILURE);
     }
-    
+
     // start GLEW extension handler
     glewInit();
     // get version info
@@ -35,12 +45,10 @@ static void init()
     const GLubyte *version = glGetString(GL_VERSION);   // version as a string
     std::cout << "Renderer: " << renderer << std::endl;
     std::cout << "OpenGL version supported: " << version << std::endl;
-}
 
-int main()
-{
-    init();
-    
+    // Initialize GUI
+    gui = std::make_unique<SmokeGUI>();
+
     // Enable depth test
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -56,10 +64,50 @@ int main()
         0, 1, 2,
         1, 2, 3};
     screenQuad = std::make_unique<Mesh>(vertices, indices);
-    mandelbulbShader = std::make_unique<Shader>("data/shader/mandelbulb");
+}
 
-    // Initialize GUI
-    gui = std::make_unique<GUI>();
+static void setUniforms(std::unique_ptr<Shader> &shader, float h, float dt)
+{
+    shader->bind();
+    shader->setUniform("h", h);
+    shader->setUniform("dt", dt);
+    shader->setUniform("screenResolution", Window::getInstance().getResolution());
+    shader->setUniform("gridResolution", simulationDimension);
+    gui->setUniforms(shader);
+    shader->unbind();
+}
+
+int main()
+{
+    init();
+
+    applyGravityShader = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/applyGravity.comp"}));
+    forceIncompressibility = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/forceIncompressibility.comp"}));
+    extrapolate = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/extrapolate.comp"}));
+    advectVelocities = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/advectVelocities.comp"}));
+    copyVelocityBuffer = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/copyVelocityBuffer.comp"}));
+    advectSmoke = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/advectSmoke.comp"}));
+    copySmokeBuffer = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/copySmokeBuffer.comp"}));
+    smokeRenderShader = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/smoke.vert", "data/shader/smoke/smoke.frag"}));
+
+    // Initialize SSBOs
+    std::vector<float> uValues((simulationDimension.x + 1) * simulationDimension.y, 0);
+    std::vector<float> vValues(simulationDimension.x * (simulationDimension.y + 1), 0);
+    std::vector<float> pressure(simulationDimension.x * simulationDimension.y, 1.f);
+    std::vector<float> obstacles(simulationDimension.x * simulationDimension.y, 1.f);
+    std::vector<float> smoke(simulationDimension.x * simulationDimension.y, 1.f);
+
+    const int xDispatches = simulationDimension.x / 16 + 1;
+    const int yDispatches = simulationDimension.y / 16 + 1;
+
+    GLuint uBuffer = Shader::createBuffer(uValues, 0);
+    GLuint vBuffer = Shader::createBuffer(vValues, 1);
+    GLuint nextUBuffer = Shader::createBuffer(uValues, 2);
+    GLuint nextVBuffer = Shader::createBuffer(vValues, 3);
+    GLuint obstacleBuffer = Shader::createBuffer(obstacles, 4);
+    GLuint pressureBuffer = Shader::createBuffer(pressure, 5);
+    GLuint smokeBuffer = Shader::createBuffer(smoke, 6);
+    GLuint nextSmokeBuffer = Shader::createBuffer(smoke, 7);
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(Window::getInstance().getGLFWWindow()))
@@ -76,27 +124,72 @@ int main()
         // Update controls
         BaseControls *controls = getControls();
         controls->update(dt);
+        if (controls->reload)
+        {
+            applyGravityShader->reload();
+            forceIncompressibility->reload();
+            extrapolate->reload();
+            advectVelocities->reload();
+            copyVelocityBuffer->reload();
+            advectSmoke->reload();
+            copySmokeBuffer->reload();
+            smokeRenderShader->reload();
+            controls->reload = false;
+        }
 
         // Build GUI
-        gui->build();
+        gui->build(dt);
 
-        mandelbulbShader->bind();
+        // Calculate grid spacing
+        glm::vec2 ratio = Window::getInstance().getResolution() / simulationDimension;
+        float h = glm::min(ratio.x, ratio.y);
 
-        // Update shader uniforms 
-        mandelbulbShader->setUniform("time", (float)glfwGetTime());
-        mandelbulbShader->setUniform("resolution", Window::getInstance().getResolution());
-        mandelbulbShader->setUniform("cameraPosition", controls->getCameraPosition());
-        mandelbulbShader->setUniform("cameraDirection", controls->getCameraDirection());
-        gui->update(mandelbulbShader);
+        // Udpate shader uniforms
+        setUniforms(applyGravityShader, h, dt);
+        setUniforms(forceIncompressibility, h, dt);
+        setUniforms(extrapolate, h, dt);
+        setUniforms(advectVelocities, h, dt);
+        setUniforms(copyVelocityBuffer, h, dt);
+        setUniforms(advectSmoke, h, dt);
+        setUniforms(copySmokeBuffer, h, dt);
+        setUniforms(smokeRenderShader, h, dt);
 
-        // Draw scene
+        // Dispatch compute shaders
+        applyGravityShader->dispatch(xDispatches, yDispatches);
+        for (int i = 0; gui->performStep && i < gui->iterations; ++i)
+        {
+            forceIncompressibility->bind();
+            forceIncompressibility->setUniform("alternatingBit", 1);
+            forceIncompressibility->unbind();
+            forceIncompressibility->dispatch(xDispatches, yDispatches);
+            forceIncompressibility->bind();
+            forceIncompressibility->setUniform("alternatingBit", 0);
+            forceIncompressibility->unbind();
+            forceIncompressibility->dispatch(xDispatches, yDispatches);
+        }
+        extrapolate->dispatch(xDispatches, yDispatches);
+        advectVelocities->dispatch(xDispatches, yDispatches);
+        copyVelocityBuffer->dispatch(xDispatches, yDispatches);
+        advectSmoke->dispatch(xDispatches, yDispatches);
+        copySmokeBuffer->dispatch(xDispatches, yDispatches);
+
+        // Render scene
+        smokeRenderShader->bind();
         screenQuad->draw();
         gui->render();
-
-        mandelbulbShader->unbind();
+        smokeRenderShader->unbind();
 
         glfwSwapBuffers(Window::getInstance().getGLFWWindow());
     }
+
+    Shader::destroyBuffer(uBuffer);
+    Shader::destroyBuffer(vBuffer);
+    Shader::destroyBuffer(nextUBuffer);
+    Shader::destroyBuffer(nextVBuffer);
+    Shader::destroyBuffer(obstacleBuffer);
+    Shader::destroyBuffer(pressureBuffer);
+    Shader::destroyBuffer(smokeBuffer);
+    Shader::destroyBuffer(nextSmokeBuffer);
 
     return EXIT_SUCCESS;
 }

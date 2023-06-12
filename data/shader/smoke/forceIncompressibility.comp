@@ -1,0 +1,43 @@
+#include "data/shader/smoke/smokeHeader.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+
+    if ((id.x + id.y) % 2 == alternatingBit) {
+        return;
+    }
+
+    float s = loadField(id.x, id.y, S_FIELD);
+    if (s == 0.f) {
+        return;
+    }
+    float prevS = loadField(id.x - 1, id.y, S_FIELD);
+    float nextS = loadField(id.x + 1, id.y, S_FIELD);
+    float upperS = loadField(id.x, id.y - 1, S_FIELD);
+    float lowerS = loadField(id.x, id.y + 1, S_FIELD);
+    s = prevS + nextS + lowerS + upperS;
+    if (s == 0.f) {
+        return;
+    }
+
+    float u1 = loadField(id.x, id.y, U_FIELD);
+    float u2 = loadField(id.x + 1, id.y, U_FIELD);
+    float v1 = loadField(id.x, id.y, V_FIELD);
+    float v2 = loadField(id.x, id.y + 1, V_FIELD);
+    float d = u2 - u1 + v2 - v1; // outflow
+
+    float tmp = -d / s;
+    tmp *= overrelaxation;
+
+    float cp = density * h / dt;
+    float p = loadField(id.x, id.y, P_FIELD);
+    saveField(id.x, id.y, P_FIELD, cp * tmp + p);
+
+    saveField(id.x, id.y, U_FIELD, u1 - prevS * tmp);
+    saveField(id.x + 1, id.y, U_FIELD, u2 + nextS * tmp);
+    saveField(id.x, id.y, V_FIELD, v1 - upperS * tmp);
+    saveField(id.x, id.y + 1, V_FIELD, v2 + lowerS * tmp);
+}

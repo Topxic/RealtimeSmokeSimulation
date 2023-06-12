@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-set(PROJECT_TITLE "mandelbulb")
+set(PROJECT_TITLE "smoke-simulation")
 project(${PROJECT_TITLE})
 
 set(CMAKE_CXX_STANDARD 14)

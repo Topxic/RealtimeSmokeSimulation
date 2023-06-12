@@ -1,0 +1,39 @@
+#include "data/shader/smoke/smokeHeader.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{   
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+    saveField(id.x, id.y, P_FIELD, 0.f);
+    float s = loadField(id.x, id.y, S_FIELD);
+    if (s == 0.f) {
+        return;
+    }
+
+    float u = loadField(id.x, id.y, U_FIELD);
+    float v = loadField(id.x, id.y, V_FIELD);
+
+    u += dt * gravity.x;
+    v += dt * gravity.y;
+
+    saveField(id.x, id.y, U_FIELD, u);
+    saveField(id.x, id.y, V_FIELD, v);
+
+    if (id.y > 100 && id.y < 200) {
+        if (id.x == 0) {
+            saveField(id.x, id.y, M_FIELD, 0.f);
+            saveField(id.x, id.y, NEXT_M_FIELD, 0.f);
+        }
+    }
+
+    if (id.y > 100 && id.y < 200 
+        && !(id.y > 110 && id.y < 120)
+        && !(id.y > 130 && id.y < 140)
+        && !(id.y > 150 && id.y < 160)
+        && !(id.y > 170 && id.y < 180)
+        && !(id.y > 190 && id.y < 200)
+        && id.x > 10 && id.x < 90) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+}

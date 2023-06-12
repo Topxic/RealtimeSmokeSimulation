@@ -10,6 +10,8 @@
 class BaseControls
 {
 public:
+    static bool reload;
+
     /**
      * @brief Enable or disable the controls.
      *
@@ -26,6 +28,8 @@ public:
     glm::vec3 getCameraDirection() const;
 
     glm::vec3 getCameraUp() const;
+
+    glm::mat4 getViewMatrix() const;
 
     /**
      * @brief Update the camera position and direction based on mouse and keyboard inputs.
@@ -66,6 +70,7 @@ private:
     static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 };
 
+
 class OrbitControls : public BaseControls
 {
 public:
@@ -89,6 +94,7 @@ private:
 
     void updateCamera();
 };
+
 
 class FreeControls : public BaseControls
 {

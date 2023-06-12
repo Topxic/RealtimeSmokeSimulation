@@ -12,6 +12,7 @@ bool BaseControls::backwardPressed = false;
 bool BaseControls::leftPressed = false;
 bool BaseControls::rightPressed = false;
 bool BaseControls::enabled = true;
+bool BaseControls::reload = false;
 
 glm::vec3 BaseControls::cameraUp = glm::vec3(0, 1, 0);
 glm::vec3 BaseControls::cameraPosition;
@@ -128,6 +129,9 @@ void BaseControls::keyCallback(GLFWwindow *window, int key, int scancode, int ac
             controls->backwardPressed = false;
         }
         break;
+    case GLFW_KEY_R:
+        reload = true;
+        break;
     default:
         break;
     }
@@ -156,6 +160,11 @@ glm::vec3 BaseControls::getCameraDirection() const
 glm::vec3 BaseControls::getCameraUp() const
 {
     return cameraUp;
+}
+
+glm::mat4 BaseControls::getViewMatrix() const
+{
+    return glm::lookAt(cameraPosition, cameraPosition + cameraDirection, cameraUp);
 }
 
 void OrbitControls::update(float deltaTime)
