@@ -88,7 +88,6 @@ void SmokeGUI::build(float dt)
     ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 200);
     ImGui::SliderFloat2("Gravity", &gravity[0], -10, 10);
     ImGui::SliderFloat("Density", &density, 500, 2000);
-    ImGui::SliderFloat("Radius", &radius, 1.f, 10.f);
     ImGui::End();
 }
 
@@ -101,5 +100,4 @@ void SmokeGUI::setUniforms(const std::unique_ptr<Shader> &shader)
     shader->setUniform("showVelocityField", showVelocityField);
     shader->setUniform("showPressureField", showPressureField);
     shader->setUniform("interpolate", interpolate);
-    shader->setUniform("radius", radius);
 }

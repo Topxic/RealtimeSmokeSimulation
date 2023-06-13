@@ -66,10 +66,9 @@ uniform bool interpolate;
 uniform float radius;
 uniform vec2 mousePosition;
 
+const float maxVelocity = 100.f;
+
 float loadField(int x, int y, int field) {
-    if (field == S_FIELD && (y < 0 || y >= int(gridResolution.y))) {
-        return 1.f;
-    }
     if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
         return 0.f;
     }

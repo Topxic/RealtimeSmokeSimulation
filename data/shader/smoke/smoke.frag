@@ -28,7 +28,7 @@ void main() {
   } else if (showVelocityField) { 
     color = vec3(u, v, 0);
   } else if (showPressureField) {
-    color = vec3(p / 1000);
+    color = vec3(p);
   } else {
     color = vec3(m);
   }

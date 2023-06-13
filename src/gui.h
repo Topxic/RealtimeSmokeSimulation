@@ -83,7 +83,6 @@ private:
     bool showVelocityField = false;
     bool showPressureField = false;
     bool interpolate = true;
-    float radius = 3.f;
 };
 
 #endif // GUI_H

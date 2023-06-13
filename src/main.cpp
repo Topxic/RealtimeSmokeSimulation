@@ -27,7 +27,7 @@ std::unique_ptr<Shader> smokeRenderShader;
 std::unique_ptr<Mesh> screenQuad;
 std::unique_ptr<SmokeGUI> gui;
 
-const auto simulationDimension = glm::vec2(300);
+const auto simulationDimension = glm::vec2(400);
 
 static void init()
 {
