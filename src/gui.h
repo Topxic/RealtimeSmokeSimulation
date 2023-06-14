@@ -69,8 +69,9 @@ private:
 class SmokeGUI : public BaseGUI
 {
 public:
-    int iterations = 30;
+    int iterations = 9;
     bool performStep = true;
+    bool reset = false;
 
     void build(float dt);
 

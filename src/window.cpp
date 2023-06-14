@@ -29,7 +29,7 @@ Window::Window(unsigned int width, unsigned int height)
         throw std::runtime_error("Could not start GLFW3");
     }
 
-    glfwWindow = glfwCreateWindow(width, height, "Hello shader", NULL, NULL);
+    glfwWindow = glfwCreateWindow(width, height, "SmokeSimulation2DOpenCL", NULL, NULL);
     if (!glfwWindow)
     {
         fprintf(stderr, "ERROR: could not open window with GLFW3\n");

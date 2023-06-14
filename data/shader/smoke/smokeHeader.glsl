@@ -63,8 +63,7 @@ uniform int iterations;
 uniform bool showVelocityField;
 uniform bool showPressureField;
 uniform bool interpolate;
-uniform float radius;
-uniform vec2 mousePosition;
+uniform bool reset;
 
 const float maxVelocity = 100.f;
 

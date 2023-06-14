@@ -6,6 +6,11 @@ void main()
 {   
     ivec2 id = ivec2(gl_GlobalInvocationID.xy);
 
+    if (reset) {
+        saveField(id.x, id.y, M_FIELD, 1.f);
+        saveField(id.x, id.y, NEXT_M_FIELD, 1.f);
+    }
+
     // Reset pressure
     saveField(id.x, id.y, P_FIELD, 0.f);
 
@@ -19,7 +24,6 @@ void main()
 
     // Set obstacles
     saveField(id.x, id.y, S_FIELD, 1.f);
-    
 
     vec2 center = gridResolution / 2;
     // Center vertical box

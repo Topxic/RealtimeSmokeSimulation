@@ -80,6 +80,7 @@ void SmokeGUI::build(float dt)
     ImGui::NewFrame();
     ImGui::Begin("Smoke Parameters", &show);
     ImGui::Text("FPS: %.1f", 1 / dt);
+    reset = ImGui::Button("Reset");
     ImGui::Checkbox("Perform step", &performStep);
     ImGui::Checkbox("Show velocity field", &showVelocityField);
     ImGui::Checkbox("Show pressure field", &showPressureField);
@@ -100,4 +101,6 @@ void SmokeGUI::setUniforms(const std::unique_ptr<Shader> &shader)
     shader->setUniform("showVelocityField", showVelocityField);
     shader->setUniform("showPressureField", showPressureField);
     shader->setUniform("interpolate", interpolate);
+    shader->setUniform("reset", reset);
+    reset = false;
 }
