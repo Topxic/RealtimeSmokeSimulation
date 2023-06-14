@@ -4,7 +4,7 @@ It utilizes the power of the GPU by accelerating computations through OpenCL com
 The simulation consists of several steps performed in each iteration, including applying gravity on the velocity field, 
 enforcing incompressibility within the field for a defined number of iterations, and applying advection.
 
-![2023-06-14 14-56-22](https://github.com/Topxic/SmokeSimulation2DOpenCL/assets/50781880/bfc4b989-4a69-4e78-9e04-d4d70ea17a7f)
+![](SmokeSimulation2DOpenCL.gif)
 
 ## Prerequisites
 Before running SmokeSimulation2DOpenCL, make sure you have the following dependencies installed:
