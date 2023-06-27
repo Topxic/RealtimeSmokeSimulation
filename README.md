@@ -14,7 +14,7 @@ CMake (version >= 3.22.1)
 OpenGL and GLEW
 
 ## Installation
-Clone the QuizManager repository:
+Clone the repository:
 ```bash
 git clone git@github.com:Topxic/SmokeSimulation2DOpenCL.git
 cd SmokeSimulation2DOpenCL
