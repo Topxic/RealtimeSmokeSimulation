@@ -28,9 +28,9 @@ void main() {
   } else if (showVelocityField) { 
     color = vec3(u, v, 0);
   } else if (showPressureField) {
-    color = vec3(p);
+    color = vec3(p / 30000000);
   } else {
-    color = vec3(m);
+    color =  vec3(m);
   }
 
   fragColor = vec4(color, 1);

@@ -9,6 +9,9 @@ void main()
     if (reset) {
         saveField(id.x, id.y, M_FIELD, 1.f);
         saveField(id.x, id.y, NEXT_M_FIELD, 1.f);
+        saveField(id.x, id.y, U_FIELD, 0.f);
+        saveField(id.x, id.y, V_FIELD, 0.f);
+        saveField(id.x, id.y, P_FIELD, 0.f);
     }
 
     // Reset pressure
