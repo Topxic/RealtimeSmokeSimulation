@@ -71,7 +71,7 @@ float loadField(int x, int y, int field) {
     if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
         return 0.f;
     }
-    int i = x * int(gridResolution.y) + y;
+    int i = x * int(gridResolution.y + 1) + y;
     switch (field) {
         case U_FIELD:
             return velocityU[i];
@@ -97,7 +97,7 @@ void saveField(int x, int y, int field, float value) {
     if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
         return;
     }
-    int i = x * int(gridResolution.y) + y;
+    int i = x * int(gridResolution.y + 1) + y;
     switch (field) {
         case U_FIELD:
             velocityU[i] = value;
