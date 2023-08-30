@@ -19,7 +19,7 @@ include_directories(
         ${GLEW_INCLUDE_DIRS}
         external/imgui
         external/imgui/backends
-        external/glm/glm
+        external/glm
 )
 
 file(GLOB SOURCES src/*)
