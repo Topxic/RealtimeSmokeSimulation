@@ -23,7 +23,7 @@ Download git submodules:
 ```bash
 git submodule update --init --recursive
 ```
-Install dependecies:
+Install dependencies:
 ```bash
 sudo apt-get update
 sudo apt-get install cmake g++ libx11-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libglew-dev
