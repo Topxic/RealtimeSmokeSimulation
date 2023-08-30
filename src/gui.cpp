@@ -43,36 +43,6 @@ void BaseGUI::render() const
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void MandelbulbGUI::build(float dt)
-{
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    ImGui::Begin("Rendering Options", &show);
-    ImGui::Checkbox("Anti Aliasing", &antiAliasing);
-    ImGui::SliderInt("Maximal raymarching steps", &maximalSteps, 1, 300);
-    ImGui::InputFloat("Maximal raymarching distance", &maximalDistance);
-    ImGui::SliderFloat3("Light direction", &lightDir[0], -1, 1);
-    ImGui::End();
-    ImGui::Begin("Fractal Options", &show);
-    ImGui::SliderInt("Iterations", &iterations, 1, 300);
-    ImGui::SliderFloat("Bailout", &bailout, .95f, 5.f);
-    ImGui::SliderFloat("Power", &power, 1.f, 10.f, "%.6f");
-    ImGui::End();
-}
-
-void MandelbulbGUI::setUniforms(const std::unique_ptr<Shader> &shader)
-{
-    shader->setUniform("antiAliasing", antiAliasing);
-    shader->setUniform("iterations", iterations);
-    shader->setUniform("bailout", bailout);
-    shader->setUniform("power", power);
-    shader->setUniform("maximalSteps", maximalSteps);
-    shader->setUniform("maximalDistance", maximalDistance);
-    lightDir = glm::normalize(lightDir);
-    shader->setUniform("lightDir", lightDir);
-}
-
 void SmokeGUI::build(float dt)
 {
     ImGui_ImplOpenGL3_NewFrame();
@@ -86,7 +56,7 @@ void SmokeGUI::build(float dt)
     ImGui::Checkbox("Show pressure field", &showPressureField);
     ImGui::Checkbox("Interpolate", &interpolate);
     ImGui::SliderFloat("Overrelaxation", &overrelaxation, 0, 4);
-    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 200);
+    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 2000);
     ImGui::SliderFloat2("Gravity", &gravity[0], -10, 10);
     ImGui::SliderFloat("Density", &density, 500, 2000);
     ImGui::End();

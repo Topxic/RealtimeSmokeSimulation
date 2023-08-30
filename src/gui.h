@@ -42,30 +42,6 @@ private:
     static bool initialized;
 };
 
-
-class MandelbulbGUI : public BaseGUI
-{
-public:
-    void build(float dt);
-
-    void setUniforms(const std::unique_ptr<Shader> &shader);
-
-private:
-    // Mandelbulb configuration
-    int iterations = 25;
-    float bailout = 3.0;
-    float power = 8.0;
-
-    // Raymarching configuration
-    int maximalSteps = 120;
-    float maximalDistance = 300.0;
-
-    // Light configuration
-    glm::vec3 lightDir = glm::vec3(0, 1, 0);
-    bool antiAliasing = false;
-};
-
-
 class SmokeGUI : public BaseGUI
 {
 public:
