@@ -1,4 +1,4 @@
-# SmokeSimulation2DOpenCL
+# Simple2DSmokeSimulation
 SmokeSimulation2DOpenCL is a C++ project that implements a 2D smoke simulation using an Eulerian grid-based approach. 
 It utilizes the power of the GPU by accelerating computations through OpenCL compute shaders. 
 The simulation consists of several steps performed in each iteration, including applying gravity on the velocity field, 
