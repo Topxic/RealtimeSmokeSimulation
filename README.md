@@ -26,7 +26,7 @@ git submodule update --init --recursive
 Install dependencies:
 ```bash
 sudo apt-get update
-sudo apt-get install cmake g++ libx11-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libglew-dev
+sudo apt-get install cmake g++ libx11-dev libxrandr-dev libxinerama-dev libgl1-mesa-dev libglew-dev libglfw3 libglfw3-dev
 ```
 Build cmake project:
 ```bash
