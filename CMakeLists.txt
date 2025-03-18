@@ -1,36 +1,29 @@
 cmake_minimum_required(VERSION 3.22.1)
-set(PROJECT_TITLE "smoke-simulation")
-project(${PROJECT_TITLE})
+set(PROJECT_NAME "2d-smoke-simulation")
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Werror -Wall -Wno-long-long -pedantic")
+cmake_minimum_required(VERSION 3.5)
+project(MyApplication LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 20)
 
-# Build GLFW
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(external/glfw)
+# Add GLFramework as a subdirectory (assuming it is cloned in "libs/GLFramework")
+add_subdirectory(external/EasyOpenGL)
 
-find_package(OpenGL REQUIRED)
-find_package(GLEW REQUIRED)
-
+# Include the GLFramework headers
 include_directories(
-        ${OPENGL_INCLUDE_DIR}
-        ${GLEW_INCLUDE_DIRS}
-        external/imgui
-        external/imgui/backends
-        external/glm
+    external/EasyOpenGL/include
+    external/EasyOpenGL/libs/glm
+    external/EasyOpenGL/libs/imgui
+    external/EasyOpenGL/libs/imgui/backends
+    external/EasyOpenGL/libs/stb
+    external/EasyOpenGL/libs/tinylogger
+    external/EasyOpenGL/libs/tinyobjloader
 )
 
-file(GLOB SOURCES src/*)
-# Add ImGUI
-file(GLOB IMGUI external/imgui/*.cpp)
-file(GLOB IMGUI_BACKEND external/imgui/backends/imgui_impl_glfw.cpp external/imgui/backends/imgui_impl_opengl3.cpp)
-add_executable(${PROJECT_TITLE} ${SOURCES} ${IMGUI} ${IMGUI_BACKEND})
+# Source files for the application
+file(GLOB SRC_FILES src/*.cpp)
 
-target_link_libraries(
-        ${PROJECT_TITLE}
-        glfw
-        ${OPENGL_LIBRARIES}
-        ${GLEW_LIBRARIES}
-)
+# Create the executable
+add_executable(${PROJECT_NAME} ${SRC_FILES})
+
+# Link against the GLFramework library
+target_link_libraries(${PROJECT_NAME} PRIVATE EasyOpenGL glfw)

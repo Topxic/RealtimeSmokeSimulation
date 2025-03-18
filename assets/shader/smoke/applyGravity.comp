@@ -1,0 +1,71 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{   
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+    vec2 center = gridResolution / 2;
+
+    if (reset) {
+        saveField(id.x, id.y, M_FIELD, 1.f);
+        saveField(id.x, id.y, NEXT_M_FIELD, 1.f);
+        saveField(id.x, id.y, U_FIELD, 0.f);
+        saveField(id.x, id.y, V_FIELD, 0.f);
+        saveField(id.x, id.y, P_FIELD, 0.f);
+    }
+
+    // Reset pressure
+    saveField(id.x, id.y, P_FIELD, 0.f);
+
+    // Fille smoke source
+    if (id.x == 0 && abs(id.y - center.y) < gridResolution.y / 16) {
+        saveField(id.x, id.y, M_FIELD, 0.f);
+    }
+
+    // Set smoke permability of voxel (1: Smoke can pass, 0: Blocked)
+    saveField(id.x, id.y, S_FIELD, 1.f);
+
+    // Center vertical box
+    vec2 dist = abs(vec2(id) - center + vec2(20, 0));
+    if (dist.x < 10 && dist.y < 60) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+
+    // End 2 vertical boxes
+    dist = abs(vec2(id) - center + vec2(-130, -120));
+    if (dist.x < 5 && dist.y < 40) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+    dist = abs(vec2(id) - center + vec2(-130, 120));
+    if (dist.x < 5 && dist.y < 40) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+    
+    // First 2 small horizontal boxes
+    dist = abs(vec2(id) - center + vec2(130, -20));
+    if (dist.x < 20 && dist.y < 10) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+    dist = abs(vec2(id) - center + vec2(130, 20));
+    if (dist.x < 20 && dist.y < 10) {
+        saveField(id.x, id.y, S_FIELD, 0.f);
+    }
+
+    // Apply gravity
+    float s = loadField(id.x, id.y, S_FIELD);
+    if (s == 0.f) {
+        return;
+    }
+
+    float u = loadField(id.x, id.y, U_FIELD);
+    float v = loadField(id.x, id.y, V_FIELD);
+
+    u += dt * gravity.x;
+    v += dt * gravity.y;
+    u = clamp(u, -maxVelocity, maxVelocity);
+    v = clamp(v, -maxVelocity, maxVelocity);
+
+    saveField(id.x, id.y, U_FIELD, u);
+    saveField(id.x, id.y, V_FIELD, v);
+}

@@ -1,95 +1,167 @@
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
+#include <tinylogger/tinylogger.h>
 #include <glm/glm.hpp>
 
-#include <stdio.h>
-#include <unistd.h>
-#include <chrono>
-#include <memory>
+#include <filesystem>
 
-#include "shader.h"
-#include "mesh.h"
-#include "controls.h"
-#include "window.h"
-#include "gui.h"
+#include "graphics/window.h"
+#include "graphics/mesh.h"
+#include "graphics/shader.h"
+#include "graphics/buffers.h"
 
-#include <iostream>
+#include "controls/devices.h"
+#include "controls/controls.h"
+#include "controls/camera.h"
+#include "controls/gui.h"
 
-std::unique_ptr<Shader> applyGravityShader;
-std::unique_ptr<Shader> forceIncompressibility;
-std::unique_ptr<Shader> extrapolate;
-std::unique_ptr<Shader> advectVelocities;
-std::unique_ptr<Shader> copyVelocityBuffer;
-std::unique_ptr<Shader> advectSmoke;
-std::unique_ptr<Shader> copySmokeBuffer;
-std::unique_ptr<Shader> smokeRenderShader;
 
-std::unique_ptr<Mesh> screenQuad;
-std::unique_ptr<SmokeGUI> gui;
+const auto windowResolution = glm::vec2(600);
+const auto simulationDimension = glm::vec3(800, 800, 1);
 
-const auto simulationDimension = glm::vec2(800);
-
-static void init()
+static void initGLEW()
 {
-    // Change the current directory to the directory of the executable
-    if (chdir("..") != 0)
+    GLenum err = glewInit();
+    if (GLEW_OK != err)
     {
-        std::cerr << "Failed to change directory" << std::endl;
+        tlog::error() << "Error: " << glewGetErrorString(err);
         exit(EXIT_FAILURE);
     }
 
-    // start GLEW extension handler
-    glewInit();
-    // get version info
-    const GLubyte *renderer = glGetString(GL_RENDERER); // get renderer string
-    const GLubyte *version = glGetString(GL_VERSION);   // version as a string
-    std::cout << "Renderer: " << renderer << std::endl;
-    std::cout << "OpenGL version supported: " << version << std::endl;
-
-    // Initialize GUI
-    gui = std::make_unique<SmokeGUI>();
+    // Get version info
+    const GLubyte *renderer = glGetString(GL_RENDERER);
+    const GLubyte *version = glGetString(GL_VERSION);
+    if (renderer == nullptr || version == nullptr)
+    {
+        tlog::error() << "Failed to get OpenGL version info";
+        exit(EXIT_FAILURE);
+    }
+    tlog::info() << "Renderer: " << renderer;
+    tlog::info() << "OpenGL version supported: " << version;
 
     // Enable depth test
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    // Initalize the mesh and shader
-    std::vector<Vertex> vertices = {
-        {glm::vec3(-1, 1, 0), glm::vec2(0, 0)},
-        {glm::vec3(1, 1, 0), glm::vec2(1, 0)},
-        {glm::vec3(-1, -1, 0), glm::vec2(0, 1)},
-        {glm::vec3(1, -1, 0), glm::vec2(1, 1)},
-    };
-    std::vector<unsigned int> indices = {
-        0, 1, 2,
-        1, 2, 3};
-    screenQuad = std::make_unique<Mesh>(vertices, indices);
+    // Enable backface culling
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
+    // Set clear color
+    glClearColor(0.098f, 0.094f, 0.094f, 1.0f);
 }
 
-static void setUniforms(std::unique_ptr<Shader> &shader, float h, float dt)
+static void initGLFW(graphics::Window &window)
+{
+    if (!window.init("2d-smoke-simulation", windowResolution.x, windowResolution.y))
+    {
+        exit(EXIT_FAILURE);
+    }
+    glfwMakeContextCurrent(window.getGLFWWindow());
+    // Init user input
+    glfwSetKeyCallback(window.getGLFWWindow(), controls::onKeyChange);
+    glfwSetMouseButtonCallback(window.getGLFWWindow(), controls::onMouseChange);
+    glfwSetCursorPosCallback(window.getGLFWWindow(), controls::onMouseMove);
+    glfwSetScrollCallback(window.getGLFWWindow(), controls::onMouseScroll);
+}
+
+static float getAspectRatio()
+{
+    GLint m_viewport[4];
+    glGetIntegerv(GL_VIEWPORT, m_viewport);
+    return static_cast<float>(m_viewport[2]) / static_cast<float>(m_viewport[3]);
+}
+
+/*
+static void setUniforms(std::unique_ptr<graphics::Shader> &shader, float h, float dt)
 {
     shader->bind();
     shader->setUniform("h", h);
     shader->setUniform("dt", dt);
-    shader->setUniform("screenResolution", Window::getInstance().getResolution());
+    shader->setUniform("screenResolution", graphics::Window::getGLFWWindow().getResolution());
     shader->setUniform("gridResolution", simulationDimension);
     shader->setUniform("totalIterations", gui->iterations);
     gui->setUniforms(shader);
     shader->unbind();
+    void SmokeGUI::build(float dt)
+{
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("Smoke Parameters", &show);
+    ImGui::Text("FPS: %.1f", 1 / dt);
+    reset = ImGui::Button("Reset");
+    ImGui::Checkbox("Perform step", &performStep);
+    ImGui::Checkbox("Show velocity field", &showVelocityField);
+    ImGui::Checkbox("Show pressure field", &showPressureField);
+    ImGui::Checkbox("Interpolate", &interpolate);
+    ImGui::SliderFloat("Overrelaxation", &overrelaxation, 0, 4);
+    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 50);
+    ImGui::SliderFloat2("Gravity", &gravity[0], -10, 10);
+    ImGui::SliderFloat("Density", &density, 0, 0.01);
+    ImGui::End();
 }
+
+void SmokeGUI::setUniforms(const std::unique_ptr<Shader> &shader)
+{
+    shader->setUniform("gravity", gravity);
+    shader->setUniform("overrelaxation", overrelaxation);
+    shader->setUniform("density", density);
+    shader->setUniform("iterations", iterations);
+    shader->setUniform("showVelocityField", showVelocityField);
+    shader->setUniform("showPressureField", showPressureField);
+    shader->setUniform("interpolate", interpolate);
+    shader->setUniform("reset", reset);
+    reset = false;
+}
+}
+*/
+
 
 int main()
 {
-    init();
+    // Print current working directory:
+    tlog::info() << "Current working directory: " << std::filesystem::current_path();
 
-    applyGravityShader = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/applyGravity.comp"}));
-    forceIncompressibility = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/forceIncompressibility.comp"}));
-    extrapolate = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/extrapolate.comp"}));
-    advectVelocities = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/advectVelocities.comp"}));
-    copyVelocityBuffer = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/copyVelocityBuffer.comp"}));
-    advectSmoke = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/advectSmoke.comp"}));
-    copySmokeBuffer = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/copySmokeBuffer.comp"}));
-    smokeRenderShader = std::make_unique<Shader>(std::vector<std::string>({"data/shader/smoke/smoke.vert", "data/shader/smoke/smoke.frag"}));
+    graphics::Window window;
+    initGLFW(window);
+    initGLEW();
+
+    // Init ImGUI
+    auto gui = controls::GUI(window.getGLFWWindow());
+
+    // Init camera and controls
+    auto aspectRatio = getAspectRatio();
+    auto camera = controls::Camera(
+        glm::vec3(0, 3, 0),
+        glm::vec3(0, -1, 0),
+        glm::vec3(0, 0, 1)
+    );
+    auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
+    auto controls = controls::OrbitalControls(0.015f, 0.1f);
+    bool focused = true;
+    window.hideMouse();
+
+    // Initalize the mesh and shader
+    std::vector<graphics::Mesh::Vertex> vertices = {
+        {glm::vec3(-1, 1, 0), glm::vec3(1, 0, 0), glm::vec2(0, 0)},
+        {glm::vec3(1, 1, 0), glm::vec3(1, 0, 0), glm::vec2(1, 0)},
+        {glm::vec3(-1, -1, 0), glm::vec3(1, 0, 0), glm::vec2(0, 1)},
+        {glm::vec3(1, -1, 0), glm::vec3(1, 0, 0), glm::vec2(1, 1)},
+    };
+    std::vector<unsigned int> indices = {
+        2, 1, 0,
+        1, 2, 3
+    };
+    auto screenQuad = graphics::Mesh(vertices, indices);
+
+    // Compile shaders
+    auto applyGravityShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/applyGravity.comp"}));
+    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/forceIncompressibility.comp"}));
+    auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/extrapolate.comp"}));
+    auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/advectVelocities.comp"}));
+    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/copyVelocityBuffer.comp"}));
+    auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/advectSmoke.comp"}));
+    auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/copySmokeBuffer.comp"}));
+    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/smoke.vert", "../assets/shader/smoke/smoke.frag"}));
 
     // Initialize SSBOs
     std::vector<float> uValues((simulationDimension.x + 1) * simulationDimension.y, 0);
@@ -101,93 +173,102 @@ int main()
     const int xDispatches = simulationDimension.x / 16 + 1;
     const int yDispatches = simulationDimension.y / 16 + 1;
 
-    GLuint uBuffer = Shader::createBuffer(uValues, 0);
-    GLuint vBuffer = Shader::createBuffer(vValues, 1);
-    GLuint nextUBuffer = Shader::createBuffer(uValues, 2);
-    GLuint nextVBuffer = Shader::createBuffer(vValues, 3);
-    GLuint obstacleBuffer = Shader::createBuffer(obstacles, 4);
-    GLuint pressureBuffer = Shader::createBuffer(pressure, 5);
-    GLuint smokeBuffer = Shader::createBuffer(smoke, 6);
-    GLuint nextSmokeBuffer = Shader::createBuffer(smoke, 7);
+    auto uBuffer = graphics::SSBO<float>(uValues, 0);
+    auto vBuffer = graphics::SSBO<float>(vValues, 1);
+    auto nextUBuffer = graphics::SSBO<float>(uValues, 2);
+    auto nextVBuffer = graphics::SSBO<float>(vValues, 3);
+    auto obstacleBuffer = graphics::SSBO<float>(obstacles, 4);
+    auto pressureBuffer = graphics::SSBO<float>(pressure, 5);
+    auto smokeBuffer = graphics::SSBO<float>(smoke, 6);
+    auto nextSmokeBuffer = graphics::SSBO<float>(smoke, 7);
 
-    auto previousTime = std::chrono::high_resolution_clock::now();
-    while (!glfwWindowShouldClose(Window::getInstance().getGLFWWindow()))
+    auto currTime = std::chrono::steady_clock::now();
+    auto prevTime = currTime;
+    while (!glfwWindowShouldClose(window.getGLFWWindow()) && !controls::Keyboard::getInstance().isPressed(GLFW_KEY_ESCAPE))
     {
+        // Calculate delta time between frames
+        auto currTime = std::chrono::steady_clock::now();
+        float dt = std::chrono::duration<float>(currTime - prevTime).count();
+        auto prevTime = currTime;
+
+        // Poll keyboard and mouse events
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Calculate time between frames
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<float> deltaTime = currentTime - previousTime;
-        previousTime = currentTime;
-        float dt = deltaTime.count();
+        { // Update IO
 
-        // Update controls
-        BaseControls *controls = getControls();
-        controls->update(dt);
-        if (controls->reload)
-        {
-            applyGravityShader->reload();
-            forceIncompressibility->reload();
-            extrapolate->reload();
-            advectVelocities->reload();
-            copyVelocityBuffer->reload();
-            advectSmoke->reload();
-            copySmokeBuffer->reload();
-            smokeRenderShader->reload();
-            controls->reload = false;
+            // Update camera
+            aspectRatio = getAspectRatio();
+            if (focused)
+                controls.update(camera, dt);
+            pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
+
+            // Reload shader
+            if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_R))
+            {
+                applyGravityShader.reload();
+                forceIncompressibility.reload();
+                extrapolate.reload();
+                advectVelocities.reload();
+                copyVelocityBuffer.reload();
+                advectSmoke.reload();
+                copySmokeBuffer.reload();
+                smokeRenderShader.reload();
+                controls::Keyboard::getInstance().setKeyState(GLFW_KEY_R, false);
+            }
+            if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_F1))
+            {
+                if (focused) {
+                    window.showMouse();
+                } else {
+                    window.hideMouse();
+                }
+                controls::Keyboard::getInstance().setKeyState(GLFW_KEY_F1, false);
+                focused = !focused;
+            }
+
+            gui.build();
         }
 
-        // Build GUI
-        gui->build(dt);
+        { // Update smoke simulation
 
-        // Calculate grid spacing
-        glm::vec2 ratio = Window::getInstance().getResolution() / simulationDimension;
-        float h = glm::min(ratio.x, ratio.y);
+            // Udpate shader uniforms
+            //setUniforms(applyGravityShader, h, dt);
+            //setUniforms(forceIncompressibility, h, dt);
+            //setUniforms(extrapolate, h, dt);
+            //setUniforms(advectVelocities, h, dt);
+            //setUniforms(copyVelocityBuffer, h, dt);
+            //setUniforms(advectSmoke, h, dt);
+            //setUniforms(copySmokeBuffer, h, dt);
+            //setUniforms(smokeRenderShader, h, dt);
 
-        // Udpate shader uniforms
-        setUniforms(applyGravityShader, h, dt);
-        setUniforms(forceIncompressibility, h, dt);
-        setUniforms(extrapolate, h, dt);
-        setUniforms(advectVelocities, h, dt);
-        setUniforms(copyVelocityBuffer, h, dt);
-        setUniforms(advectSmoke, h, dt);
-        setUniforms(copySmokeBuffer, h, dt);
-        setUniforms(smokeRenderShader, h, dt);
-
-        // Dispatch compute shaders
-        applyGravityShader->dispatch(xDispatches, yDispatches);
-        // 2 executions per iteration for preventing race conditions by evaluating in checkboard pattern
-        for (int i = 0; gui->performStep && i < 2 * gui->iterations; i++)
-        {
-            forceIncompressibility->bind();
-            forceIncompressibility->setUniform("currentIteration", i);
-            forceIncompressibility->unbind();
-            forceIncompressibility->dispatch(xDispatches, yDispatches);
+            // Dispatch compute shaders
+            applyGravityShader.dispatch(simulationDimension);
+            // 2 executions per iteration for preventing race conditions by evaluating in checkboard pattern
+            for (int i = 0; /*gui.performStep && i < 2 * gui.iterations*/ i < 10; i++)
+            {
+                forceIncompressibility.bind();
+                forceIncompressibility.setUniform("currentIteration", i);
+                forceIncompressibility.unbind();
+                forceIncompressibility.dispatch(simulationDimension);
+            }
+            extrapolate.dispatch(simulationDimension);
+            advectVelocities.dispatch(simulationDimension);
+            copyVelocityBuffer.dispatch(simulationDimension);
+            advectSmoke.dispatch(simulationDimension);
+            copySmokeBuffer.dispatch(simulationDimension);
         }
-        extrapolate->dispatch(xDispatches, yDispatches);
-        advectVelocities->dispatch(xDispatches, yDispatches);
-        copyVelocityBuffer->dispatch(xDispatches, yDispatches);
-        advectSmoke->dispatch(xDispatches, yDispatches);
-        copySmokeBuffer->dispatch(xDispatches, yDispatches);
 
-        // Render scene
-        smokeRenderShader->bind();
-        screenQuad->draw();
-        gui->render();
-        smokeRenderShader->unbind();
+        { // Render
+            smokeRenderShader.bind();
+            smokeRenderShader.setUniform("PV", pv);
+            screenQuad.draw(smokeRenderShader);
+            gui.render();
+            smokeRenderShader.unbind();
+        }
 
-        glfwSwapBuffers(Window::getInstance().getGLFWWindow());
+        glfwSwapBuffers(window.getGLFWWindow());
     }
-
-    Shader::destroyBuffer(uBuffer);
-    Shader::destroyBuffer(vBuffer);
-    Shader::destroyBuffer(nextUBuffer);
-    Shader::destroyBuffer(nextVBuffer);
-    Shader::destroyBuffer(obstacleBuffer);
-    Shader::destroyBuffer(pressureBuffer);
-    Shader::destroyBuffer(smokeBuffer);
-    Shader::destroyBuffer(nextSmokeBuffer);
 
     return EXIT_SUCCESS;
 }

@@ -1,0 +1,25 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+
+    if (id.y == 0) {
+        float u = loadField(id.x, id.y + 1, U_FIELD);
+        saveField(id.x, id.y, U_FIELD, u);
+
+    } else if (id.y == gridResolution.y - 1) {
+        float u = loadField(id.x, id.y - 1, U_FIELD);
+        saveField(id.x, id.y, U_FIELD, u);
+
+    } else if (id.x == 0) {
+        float v = loadField(id.x + 1, id.y, V_FIELD);
+        saveField(id.x, id.y, V_FIELD, v);
+
+    } else if (id.x == gridResolution.x - 1) {
+        float v = loadField(id.x - 1, id.y, V_FIELD);
+        saveField(id.x, id.y, V_FIELD, v);
+    }
+}
