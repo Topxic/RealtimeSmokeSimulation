@@ -146,7 +146,6 @@ int main()
         float h = glm::min(ratio.x, ratio.y);
 
         // Udpate shader uniforms
-        dt = 1 / 120.f;
         setUniforms(applyGravityShader, h, dt);
         setUniforms(forceIncompressibility, h, dt);
         setUniforms(extrapolate, h, dt);
