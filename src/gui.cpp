@@ -56,9 +56,9 @@ void SmokeGUI::build(float dt)
     ImGui::Checkbox("Show pressure field", &showPressureField);
     ImGui::Checkbox("Interpolate", &interpolate);
     ImGui::SliderFloat("Overrelaxation", &overrelaxation, 0, 4);
-    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 2000);
+    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 50);
     ImGui::SliderFloat2("Gravity", &gravity[0], -10, 10);
-    ImGui::SliderFloat("Density", &density, 500, 2000);
+    ImGui::SliderFloat("Density", &density, 0, 0.01);
     ImGui::End();
 }
 

@@ -5,6 +5,7 @@ layout(local_size_x = 16, local_size_y = 16) in;
 void main()
 {   
     ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+    vec2 center = gridResolution / 2;
 
     if (reset) {
         saveField(id.x, id.y, M_FIELD, 1.f);
@@ -18,17 +19,13 @@ void main()
     saveField(id.x, id.y, P_FIELD, 0.f);
 
     // Fille smoke source
-    if (id.y > 150 && id.y < 250) {
-        if (id.x == 0) {
-            saveField(id.x, id.y, M_FIELD, 0.f);
-            saveField(id.x, id.y, NEXT_M_FIELD, 0.f);
-        }
+    if (id.x == 0 && abs(id.y - center.y) < gridResolution.y / 16) {
+        saveField(id.x, id.y, M_FIELD, 0.f);
     }
 
-    // Set obstacles
+    // Set smoke permability of voxel (1: Smoke can pass, 0: Blocked)
     saveField(id.x, id.y, S_FIELD, 1.f);
 
-    vec2 center = gridResolution / 2;
     // Center vertical box
     vec2 dist = abs(vec2(id) - center + vec2(20, 0));
     if (dist.x < 10 && dist.y < 60) {

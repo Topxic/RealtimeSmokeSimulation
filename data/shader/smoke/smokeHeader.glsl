@@ -58,8 +58,8 @@ uniform float h; // Grid spacing
 uniform float overrelaxation;
 uniform vec2 gravity;
 uniform float density;
-uniform int alternatingBit;
-uniform int iterations;
+uniform int currentIteration;
+uniform int totalIteration;
 uniform bool showVelocityField;
 uniform bool showPressureField;
 uniform bool interpolate;
@@ -68,61 +68,116 @@ uniform bool reset;
 const float maxVelocity = 100.f;
 
 float loadField(int x, int y, int field) {
-    if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
-        return 0.f;
-    }
-    int i = x * int(gridResolution.y + 1) + y;
+    // Check bounds and calculate index
+    int idx = -1;
     switch (field) {
         case U_FIELD:
-            return velocityU[i];
-        case V_FIELD:
-            return velocityV[i];
         case NEXT_U_FIELD:
-            return nextVelocityU[i];
+            if (x < 0 || x > int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
+                return 0.f;
+            }
+            idx = y * int(gridResolution.x + 1) + x;
+            break;
+        case V_FIELD:
         case NEXT_V_FIELD:
-            return nextVelocityV[i];
+            if (x < 0 || x >= int(gridResolution.x) || y < 0 || y > int(gridResolution.y)) {
+                return 0.f;
+            }
+            idx = x * int(gridResolution.y + 1) + y;
+            break;
         case S_FIELD:
-            return obstacle[i];
         case P_FIELD:
-            return pressure[i];
+            if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
+                return 0.f;
+            }
+            idx = x * int(gridResolution.y) + y;
+            break;
         case M_FIELD:
-            return smoke[i];
         case NEXT_M_FIELD:
-            return nextSmoke[i];
+            if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
+                return 1.f;
+            }
+            idx = x * int(gridResolution.y) + y;
+            break;
+    }
+
+    // Lookup value
+    switch (field) {
+        case U_FIELD:
+            return velocityU[idx];
+        case V_FIELD:
+            return velocityV[idx];
+        case NEXT_U_FIELD:
+            return nextVelocityU[idx];
+        case NEXT_V_FIELD:
+            return nextVelocityV[idx];
+        case S_FIELD:
+            return obstacle[idx];
+        case P_FIELD:
+            return pressure[idx];
+        case M_FIELD:
+            return smoke[idx];
+        case NEXT_M_FIELD:
+            return nextSmoke[idx];
     }
     return 0.f;
 }
 
 void saveField(int x, int y, int field, float value) {
-    if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
-        return;
-    }
-    int i = x * int(gridResolution.y + 1) + y;
+    // Check bounds and calculate index
+    int idx = -1;
     switch (field) {
         case U_FIELD:
-            velocityU[i] = value;
-            return;
-        case V_FIELD:
-            velocityV[i] = value;
-            return;
         case NEXT_U_FIELD:
-            nextVelocityU[i] = value;
-            return;
+            if (x < 0 || x > int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
+                return;
+            }
+            idx = y * int(gridResolution.x + 1) + x;
+            break;
+        case V_FIELD:
         case NEXT_V_FIELD:
-            nextVelocityV[i] = value;
-            return;
+            if (x < 0 || x >= int(gridResolution.x) || y < 0 || y > int(gridResolution.y)) {
+                return;
+            }
+            idx = x * int(gridResolution.y + 1) + y;
+            break;
         case S_FIELD:
-            obstacle[i] = value;
-            return;
         case P_FIELD:
-            pressure[i] = value;
-            return;
         case M_FIELD:
-            smoke[i] = value;
-            return;
         case NEXT_M_FIELD:
-            nextSmoke[i] = value;
-            return;
+            if (x < 0 || x >= int(gridResolution.x) || y < 0 || y >= int(gridResolution.y)) {
+                return;
+            }
+            idx = x * int(gridResolution.y) + y;
+            break;
+    }
+
+    // Save value
+    switch (field) {
+        case U_FIELD:
+            velocityU[idx] = value;
+            break;
+        case V_FIELD:
+            velocityV[idx] = value;
+            break;
+        case NEXT_U_FIELD:
+            nextVelocityU[idx] = value;
+            break;
+        case NEXT_V_FIELD:
+            nextVelocityV[idx] = value;
+            break;
+        case S_FIELD:
+            obstacle[idx] = value;
+            break;
+        case P_FIELD:
+            pressure[idx] = value;
+            break;
+        case M_FIELD:
+            smoke[idx] = value;
+            break;
+        case NEXT_M_FIELD:
+            nextSmoke[idx] = value;
+            break;
     }
 }
 

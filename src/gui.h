@@ -45,7 +45,7 @@ private:
 class SmokeGUI : public BaseGUI
 {
 public:
-    int iterations = 9;
+    int iterations = 30;
     bool performStep = true;
     bool reset = false;
 
@@ -56,7 +56,7 @@ public:
 private:
     float overrelaxation = 1.9;
     glm::vec2 gravity = glm::vec2(9.81, 0);
-    float density = 1000.f;
+    float density = 0.006f;
     bool showVelocityField = false;
     bool showPressureField = false;
     bool interpolate = true;

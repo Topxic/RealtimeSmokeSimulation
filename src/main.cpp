@@ -27,7 +27,7 @@ std::unique_ptr<Shader> smokeRenderShader;
 std::unique_ptr<Mesh> screenQuad;
 std::unique_ptr<SmokeGUI> gui;
 
-const auto simulationDimension = glm::vec2(400);
+const auto simulationDimension = glm::vec2(800);
 
 static void init()
 {
@@ -73,6 +73,7 @@ static void setUniforms(std::unique_ptr<Shader> &shader, float h, float dt)
     shader->setUniform("dt", dt);
     shader->setUniform("screenResolution", Window::getInstance().getResolution());
     shader->setUniform("gridResolution", simulationDimension);
+    shader->setUniform("totalIterations", gui->iterations);
     gui->setUniforms(shader);
     shader->unbind();
 }
@@ -157,14 +158,11 @@ int main()
 
         // Dispatch compute shaders
         applyGravityShader->dispatch(xDispatches, yDispatches);
-        for (int i = 0; gui->performStep && i < gui->iterations; ++i)
+        // 2 executions per iteration for preventing race conditions by evaluating in checkboard pattern
+        for (int i = 0; gui->performStep && i < 2 * gui->iterations; i++)
         {
             forceIncompressibility->bind();
-            forceIncompressibility->setUniform("alternatingBit", 1);
-            forceIncompressibility->unbind();
-            forceIncompressibility->dispatch(xDispatches, yDispatches);
-            forceIncompressibility->bind();
-            forceIncompressibility->setUniform("alternatingBit", 0);
+            forceIncompressibility->setUniform("currentIteration", i);
             forceIncompressibility->unbind();
             forceIncompressibility->dispatch(xDispatches, yDispatches);
         }
