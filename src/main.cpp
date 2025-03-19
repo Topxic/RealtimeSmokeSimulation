@@ -12,10 +12,24 @@
 #include "controls/controls.h"
 #include "controls/camera.h"
 #include "controls/gui.h"
+#include <imgui.h>
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_glfw.h>
 
-
-const auto windowResolution = glm::vec2(600);
-const auto simulationDimension = glm::vec3(800, 800, 1);
+typedef struct {
+    glm::vec3 gridResolution = glm::vec3(800, 800, 1);
+    float gridSpacing = 1.1f;
+    int totalIterations = 47;
+    glm::vec3 gravity = glm::vec3(9.81, 0, 0);
+    float overrelaxation = 1.9f;
+    float density = 0.002f;
+    bool showVelocityField = false;
+    bool showPressureField = false;
+    bool interpolate = true;
+    bool reset = false;
+    bool useFixedDT = true;
+    float fixedDT = 1/60.f;
+} SmokeParams;
 
 static void initGLEW()
 {
@@ -38,20 +52,20 @@ static void initGLEW()
     tlog::info() << "OpenGL version supported: " << version;
 
     // Enable depth test
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    // glEnable(GL_DEPTH_TEST);
+    // glDepthFunc(GL_LESS);
 
     // Enable backface culling
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
 
     // Set clear color
-    glClearColor(0.098f, 0.094f, 0.094f, 1.0f);
+    glClearColor(0.088f, 0.084f, 0.084f, 1.0f);
 }
 
-static void initGLFW(graphics::Window &window)
+static void initGLFW(graphics::Window &window, const SmokeParams &params)
 {
-    if (!window.init("2d-smoke-simulation", windowResolution.x, windowResolution.y))
+    if (!window.init("2d-smoke-simulation", 800, 600))
     {
         exit(EXIT_FAILURE);
     }
@@ -63,66 +77,65 @@ static void initGLFW(graphics::Window &window)
     glfwSetScrollCallback(window.getGLFWWindow(), controls::onMouseScroll);
 }
 
-static float getAspectRatio()
+static inline float getAspectRatio()
 {
     GLint m_viewport[4];
     glGetIntegerv(GL_VIEWPORT, m_viewport);
     return static_cast<float>(m_viewport[2]) / static_cast<float>(m_viewport[3]);
 }
 
-/*
-static void setUniforms(std::unique_ptr<graphics::Shader> &shader, float h, float dt)
+static void buildGUI(SmokeParams &params, float dt) 
 {
-    shader->bind();
-    shader->setUniform("h", h);
-    shader->setUniform("dt", dt);
-    shader->setUniform("screenResolution", graphics::Window::getGLFWWindow().getResolution());
-    shader->setUniform("gridResolution", simulationDimension);
-    shader->setUniform("totalIterations", gui->iterations);
-    gui->setUniforms(shader);
-    shader->unbind();
-    void SmokeGUI::build(float dt)
-{
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
+    static bool show = false;
+
     ImGui::NewFrame();
     ImGui::Begin("Smoke Parameters", &show);
     ImGui::Text("FPS: %.1f", 1 / dt);
-    reset = ImGui::Button("Reset");
-    ImGui::Checkbox("Perform step", &performStep);
-    ImGui::Checkbox("Show velocity field", &showVelocityField);
-    ImGui::Checkbox("Show pressure field", &showPressureField);
-    ImGui::Checkbox("Interpolate", &interpolate);
-    ImGui::SliderFloat("Overrelaxation", &overrelaxation, 0, 4);
-    ImGui::SliderInt("Incompressibility iterations", &iterations, 0, 50);
-    ImGui::SliderFloat2("Gravity", &gravity[0], -10, 10);
-    ImGui::SliderFloat("Density", &density, 0, 0.01);
+    ImGui::Checkbox("Use fixed dt", &params.useFixedDT);
+    ImGui::SliderInt("Incompressability Iterations", &params.totalIterations, 0, 100);
+    ImGui::SliderFloat("Fixed dt", &params.fixedDT, 0.001, 0.1);
+    ImGui::SliderFloat("Grid Spacing", &params.gridSpacing, 0.001, 10);
+    ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.001, 0.1);
+    ImGui::SliderFloat3("Gravity", &params.gravity[0], -10, 10);
+    ImGui::SliderFloat("Density", &params.density, 0, 0.01);
+    ImGui::Checkbox("Show velocity field", &params.showVelocityField);
+    ImGui::Checkbox("Show pressure field", &params.showPressureField);
+    ImGui::Checkbox("Interpolate", &params.interpolate);
+    params.reset = ImGui::Button("Reset");
     ImGui::End();
 }
 
-void SmokeGUI::setUniforms(const std::unique_ptr<Shader> &shader)
+static void setUniforms(graphics::Shader &shader, SmokeParams &params, float dt)
 {
-    shader->setUniform("gravity", gravity);
-    shader->setUniform("overrelaxation", overrelaxation);
-    shader->setUniform("density", density);
-    shader->setUniform("iterations", iterations);
-    shader->setUniform("showVelocityField", showVelocityField);
-    shader->setUniform("showPressureField", showPressureField);
-    shader->setUniform("interpolate", interpolate);
-    shader->setUniform("reset", reset);
-    reset = false;
+    shader.bind();
+    shader.setUniform("gridResolution", params.gridResolution);
+    if (params.useFixedDT) {
+        shader.setUniform("dt", params.fixedDT);
+    } else {
+        shader.setUniform("dt", dt);
+    }
+    shader.setUniform("h", params.gridSpacing);
+    shader.setUniform("overrelaxation", params.overrelaxation);
+    shader.setUniform("gravity", params.gravity);
+    shader.setUniform("density", params.density);
+    shader.setUniform("showVelocityField", params.showVelocityField);
+    shader.setUniform("showPressureField", params.showPressureField);
+    shader.setUniform("interpolate", params.interpolate);
+    shader.setUniform("reset", params.reset);
+    shader.setUniform("totalIterations", params.totalIterations);
+    shader.unbind();
+    params.reset = false;
 }
-}
-*/
-
 
 int main()
 {
     // Print current working directory:
     tlog::info() << "Current working directory: " << std::filesystem::current_path();
 
+    auto params = SmokeParams();
+
     graphics::Window window;
-    initGLFW(window);
+    initGLFW(window, params);
     initGLEW();
 
     // Init ImGUI
@@ -131,8 +144,8 @@ int main()
     // Init camera and controls
     auto aspectRatio = getAspectRatio();
     auto camera = controls::Camera(
-        glm::vec3(0, 3, 0),
-        glm::vec3(0, -1, 0),
+        glm::vec3(1.2, 0, 0),
+        glm::vec3(-1, 0, 0),
         glm::vec3(0, 0, 1)
     );
     auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
@@ -142,10 +155,10 @@ int main()
 
     // Initalize the mesh and shader
     std::vector<graphics::Mesh::Vertex> vertices = {
-        {glm::vec3(-1, 1, 0), glm::vec3(1, 0, 0), glm::vec2(0, 0)},
-        {glm::vec3(1, 1, 0), glm::vec3(1, 0, 0), glm::vec2(1, 0)},
-        {glm::vec3(-1, -1, 0), glm::vec3(1, 0, 0), glm::vec2(0, 1)},
-        {glm::vec3(1, -1, 0), glm::vec3(1, 0, 0), glm::vec2(1, 1)},
+        {glm::vec3(0, 1, -1), glm::vec3(1, 0, 0), glm::vec2(0, 0)},
+        {glm::vec3(0, 1, 1), glm::vec3(1, 0, 0), glm::vec2(1, 0)},
+        {glm::vec3(0, -1, -1), glm::vec3(1, 0, 0), glm::vec2(0, 1)},
+        {glm::vec3(0, -1, 1), glm::vec3(1, 0, 0), glm::vec2(1, 1)},
     };
     std::vector<unsigned int> indices = {
         2, 1, 0,
@@ -164,14 +177,14 @@ int main()
     auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/smoke.vert", "../assets/shader/smoke/smoke.frag"}));
 
     // Initialize SSBOs
-    std::vector<float> uValues((simulationDimension.x + 1) * simulationDimension.y, 0);
-    std::vector<float> vValues(simulationDimension.x * (simulationDimension.y + 1), 0);
-    std::vector<float> pressure(simulationDimension.x * simulationDimension.y, 1.f);
-    std::vector<float> obstacles(simulationDimension.x * simulationDimension.y, 1.f);
-    std::vector<float> smoke(simulationDimension.x * simulationDimension.y, 1.f);
+    std::vector<float> uValues((params.gridResolution.x + 1) * params.gridResolution.y, 0);
+    std::vector<float> vValues(params.gridResolution.x * (params.gridResolution.y + 1), 0);
+    std::vector<float> pressure(params.gridResolution.x * params.gridResolution.y, 1.f);
+    std::vector<float> obstacles(params.gridResolution.x * params.gridResolution.y, 1.f);
+    std::vector<float> smoke(params.gridResolution.x * params.gridResolution.y, 1.f);
 
-    const int xDispatches = simulationDimension.x / 16 + 1;
-    const int yDispatches = simulationDimension.y / 16 + 1;
+    const int xDispatches = params.gridResolution.x / 16 + 1;
+    const int yDispatches = params.gridResolution.y / 16 + 1;
 
     auto uBuffer = graphics::SSBO<float>(uValues, 0);
     auto vBuffer = graphics::SSBO<float>(vValues, 1);
@@ -182,14 +195,16 @@ int main()
     auto smokeBuffer = graphics::SSBO<float>(smoke, 6);
     auto nextSmokeBuffer = graphics::SSBO<float>(smoke, 7);
 
+    auto dispatchSize = glm::ivec3(params.gridResolution) / 16 + 1;
+ 
     auto currTime = std::chrono::steady_clock::now();
     auto prevTime = currTime;
     while (!glfwWindowShouldClose(window.getGLFWWindow()) && !controls::Keyboard::getInstance().isPressed(GLFW_KEY_ESCAPE))
     {
         // Calculate delta time between frames
-        auto currTime = std::chrono::steady_clock::now();
+        currTime = std::chrono::steady_clock::now();
         float dt = std::chrono::duration<float>(currTime - prevTime).count();
-        auto prevTime = currTime;
+        prevTime = currTime;
 
         // Poll keyboard and mouse events
         glfwPollEvents();
@@ -227,36 +242,37 @@ int main()
                 focused = !focused;
             }
 
-            gui.build();
+            gui.preBuild();
+            buildGUI(params, dt);
         }
 
         { // Update smoke simulation
 
-            // Udpate shader uniforms
-            //setUniforms(applyGravityShader, h, dt);
-            //setUniforms(forceIncompressibility, h, dt);
-            //setUniforms(extrapolate, h, dt);
-            //setUniforms(advectVelocities, h, dt);
-            //setUniforms(copyVelocityBuffer, h, dt);
-            //setUniforms(advectSmoke, h, dt);
-            //setUniforms(copySmokeBuffer, h, dt);
-            //setUniforms(smokeRenderShader, h, dt);
+            // Update shader uniforms
+            setUniforms(applyGravityShader, params, dt);
+            setUniforms(forceIncompressibility, params, dt);
+            setUniforms(extrapolate, params, dt);
+            setUniforms(advectVelocities, params, dt);
+            setUniforms(copyVelocityBuffer, params, dt);
+            setUniforms(advectSmoke, params, dt);
+            setUniforms(copySmokeBuffer, params, dt);
+            setUniforms(smokeRenderShader, params, dt);
 
             // Dispatch compute shaders
-            applyGravityShader.dispatch(simulationDimension);
-            // 2 executions per iteration for preventing race conditions by evaluating in checkboard pattern
-            for (int i = 0; /*gui.performStep && i < 2 * gui.iterations*/ i < 10; i++)
+            applyGravityShader.dispatch(dispatchSize);
+            // Execute twice per iteration for preventing race conditions by evaluating in checkboard pattern
+            for (int i = 0; i < 2 * params.totalIterations; i++)
             {
                 forceIncompressibility.bind();
                 forceIncompressibility.setUniform("currentIteration", i);
                 forceIncompressibility.unbind();
-                forceIncompressibility.dispatch(simulationDimension);
+                forceIncompressibility.dispatch(dispatchSize);
             }
-            extrapolate.dispatch(simulationDimension);
-            advectVelocities.dispatch(simulationDimension);
-            copyVelocityBuffer.dispatch(simulationDimension);
-            advectSmoke.dispatch(simulationDimension);
-            copySmokeBuffer.dispatch(simulationDimension);
+            extrapolate.dispatch(dispatchSize);
+            advectVelocities.dispatch(dispatchSize);
+            copyVelocityBuffer.dispatch(dispatchSize);
+            advectSmoke.dispatch(dispatchSize);
+            copySmokeBuffer.dispatch(dispatchSize);
         }
 
         { // Render

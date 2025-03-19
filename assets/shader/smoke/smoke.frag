@@ -4,8 +4,8 @@ in vec2 tc;
 out vec4 fragColor;
 
 void main() {
-  vec2 id = h * tc * gridResolution;
-  ivec2 iid = ivec2(tc * gridResolution);
+  vec2 id = h * tc * gridResolution.xy;
+  ivec2 iid = ivec2(tc * gridResolution.xy);
   vec3 color = vec3(0.11);
 
   float s, u, v, p, m;

@@ -51,15 +51,14 @@ layout(std430, binding = 7) buffer nextSmokeField {
     float nextSmoke[];
 };
 
-uniform vec2 gridResolution;
-uniform vec2 screenResolution;
+uniform vec3 gridResolution;
 uniform float dt; // delta time 
 uniform float h; // Grid spacing
 uniform float overrelaxation;
-uniform vec2 gravity;
+uniform vec3 gravity;
 uniform float density;
 uniform int currentIteration;
-uniform int totalIteration;
+uniform int totalIterations;
 uniform bool showVelocityField;
 uniform bool showPressureField;
 uniform bool interpolate;
