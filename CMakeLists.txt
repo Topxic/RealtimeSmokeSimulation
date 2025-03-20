@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 set(PROJECT_NAME "2d-smoke-simulation")
 
 cmake_minimum_required(VERSION 3.5)
-project(MyApplication LANGUAGES CXX)
+project(${PROJECT_NAME} LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 # Add GLFramework as a subdirectory (assuming it is cloned in "libs/GLFramework")
