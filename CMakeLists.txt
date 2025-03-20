@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.22.1)
-set(PROJECT_NAME "2d-smoke-simulation")
 
-cmake_minimum_required(VERSION 3.5)
-project(${PROJECT_NAME} LANGUAGES CXX)
+# Define the main project
+project(SmokeSimulations LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 
-# Add GLFramework as a subdirectory (assuming it is cloned in "libs/GLFramework")
+# Add the external OpenGL framework
 add_subdirectory(external/EasyOpenGL)
 
-# Include the GLFramework headers
+# Include necessary directories
 include_directories(
     external/EasyOpenGL/include
     external/EasyOpenGL/libs/glm
@@ -19,11 +18,14 @@ include_directories(
     external/EasyOpenGL/libs/tinyobjloader
 )
 
-# Source files for the application
-file(GLOB SRC_FILES src/*.cpp)
+# Define 2D Smoke Simulation project
+set(PROJECT_2D "2d-smoke-simulation")
+file(GLOB SRC_FILES_2D src/2d/*.cpp)
+add_executable(${PROJECT_2D} ${SRC_FILES_2D})
+target_link_libraries(${PROJECT_2D} PRIVATE EasyOpenGL glfw)
 
-# Create the executable
-add_executable(${PROJECT_NAME} ${SRC_FILES})
-
-# Link against the GLFramework library
-target_link_libraries(${PROJECT_NAME} PRIVATE EasyOpenGL glfw)
+# Define 3D Smoke Simulation project
+set(PROJECT_3D "3d-smoke-simulation")
+file(GLOB SRC_FILES_3D src/3d/*.cpp)
+add_executable(${PROJECT_3D} ${SRC_FILES_3D})
+target_link_libraries(${PROJECT_3D} PRIVATE EasyOpenGL glfw)

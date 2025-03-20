@@ -144,9 +144,9 @@ int main()
     // Init camera and controls
     auto aspectRatio = getAspectRatio();
     auto camera = controls::Camera(
-        glm::vec3(1.2, 0, 0),
-        glm::vec3(-1, 0, 0),
-        glm::vec3(0, 0, 1)
+        glm::vec3(0, 0, 1.2),
+        glm::vec3(0, 0, -1),
+        glm::vec3(0, 1, 0)
     );
     auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
     auto controls = controls::OrbitalControls(0.015f, 0.1f);
@@ -155,26 +155,26 @@ int main()
 
     // Initalize the mesh and shader
     std::vector<graphics::Mesh::Vertex> vertices = {
-        {glm::vec3(0, 1, -1), glm::vec3(1, 0, 0), glm::vec2(0, 0)},
-        {glm::vec3(0, 1, 1), glm::vec3(1, 0, 0), glm::vec2(1, 0)},
-        {glm::vec3(0, -1, -1), glm::vec3(1, 0, 0), glm::vec2(0, 1)},
-        {glm::vec3(0, -1, 1), glm::vec3(1, 0, 0), glm::vec2(1, 1)},
+        {glm::vec3(1, -1, 0), glm::vec3(0, 0, 1), glm::vec2(1, 0)},
+        {glm::vec3(1, 1, 0), glm::vec3(0, 0, 1), glm::vec2(1, 1)},
+        {glm::vec3(-1, -1, 0), glm::vec3(0, 0, 1), glm::vec2(0, 0)},
+        {glm::vec3(-1, 1, 0), glm::vec3(0, 0, 1), glm::vec2(0, 1)},
     };
     std::vector<unsigned int> indices = {
-        2, 1, 0,
-        1, 2, 3
+        0, 1, 2,
+        3, 2, 1
     };
     auto screenQuad = graphics::Mesh(vertices, indices);
 
     // Compile shaders
-    auto applyGravityShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/applyGravity.comp"}));
-    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/forceIncompressibility.comp"}));
-    auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/extrapolate.comp"}));
-    auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/advectVelocities.comp"}));
-    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/copyVelocityBuffer.comp"}));
-    auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/advectSmoke.comp"}));
-    auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/copySmokeBuffer.comp"}));
-    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/smoke.vert", "../assets/shader/smoke/smoke.frag"}));
+    auto applyGravityShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/applyGravity.comp"}));
+    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/forceIncompressibility.comp"}));
+    auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/extrapolate.comp"}));
+    auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/advectVelocities.comp"}));
+    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/copyVelocityBuffer.comp"}));
+    auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/advectSmoke.comp"}));
+    auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/copySmokeBuffer.comp"}));
+    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/smoke.vert", "../assets/shader/smoke/2d/smoke.frag"}));
 
     // Initialize SSBOs
     std::vector<float> uValues((params.gridResolution.x + 1) * params.gridResolution.y, 0);
