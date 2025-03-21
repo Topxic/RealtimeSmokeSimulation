@@ -20,7 +20,8 @@ void main()
 
     // Fille smoke source
     if (id.x == 0 && abs(id.y - center.y) < gridResolution.y / 16) {
-        saveField(id.x, id.y, M_FIELD, 0.f);
+        float intensity = smoothstep(0.4, 0.95, abs(id.y - center.y) / (gridResolution.y / 16));
+        saveField(id.x, id.y, M_FIELD, intensity);
     }
 
     // Set smoke permability of voxel (1: Smoke can pass, 0: Blocked)
