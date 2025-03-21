@@ -17,9 +17,9 @@
 #include <imgui_impl_glfw.h>
 
 typedef struct {
-    glm::vec3 gridResolution = glm::vec3(800, 800, 1);
+    glm::vec3 gridResolution = glm::vec3(1024, 1024, 1);
     float gridSpacing = 1.1f;
-    int totalIterations = 47;
+    int totalIterations = 30;
     glm::vec3 gravity = glm::vec3(9.81, 0, 0);
     float overrelaxation = 1.9f;
     float density = 0.002f;
@@ -95,7 +95,7 @@ static void buildGUI(SmokeParams &params, float dt)
     ImGui::SliderInt("Incompressability Iterations", &params.totalIterations, 0, 100);
     ImGui::SliderFloat("Fixed dt", &params.fixedDT, 0.001, 0.1);
     ImGui::SliderFloat("Grid Spacing", &params.gridSpacing, 0.001, 10);
-    ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.001, 0.1);
+    ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.1, 2.0);
     ImGui::SliderFloat3("Gravity", &params.gravity[0], -10, 10);
     ImGui::SliderFloat("Density", &params.density, 0, 0.01);
     ImGui::Checkbox("Show velocity field", &params.showVelocityField);
@@ -174,7 +174,7 @@ int main()
     auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/copyVelocityBuffer.comp"}));
     auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/advectSmoke.comp"}));
     auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/copySmokeBuffer.comp"}));
-    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/smoke.vert", "../assets/shader/smoke/2d/smoke.frag"}));
+    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/2d/quad.vert", "../assets/shader/smoke/2d/quad.frag"}));
 
     // Initialize SSBOs
     std::vector<float> uValues((params.gridResolution.x + 1) * params.gridResolution.y, 0);
