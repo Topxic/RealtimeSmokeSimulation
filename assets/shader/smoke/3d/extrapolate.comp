@@ -1,0 +1,33 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_X, local_size_z = LOCAL_SIZE_Z) in;
+
+void main()
+{
+    ivec3 id = ivec3(gl_GlobalInvocationID);
+
+    if (id.y == 0) {
+        float u = loadField(id.x, id.y + 1, id.z, U_FIELD);
+        saveField(id.x, id.y, id.z, U_FIELD, u);
+
+    } else if (id.y == gridResolution.y - 1) {
+        float u = loadField(id.x, id.y - 1, id.z, U_FIELD);
+        saveField(id.x, id.y, id.z, U_FIELD, u);
+
+    } else if (id.x == 0) {
+        float v = loadField(id.x + 1, id.y, id.z, V_FIELD);
+        saveField(id.x, id.y, id.z, V_FIELD, v);
+
+    } else if (id.x == gridResolution.x - 1) {
+        float v = loadField(id.x - 1, id.y, id.z, V_FIELD);
+        saveField(id.x, id.y, id.z, V_FIELD, v);
+
+    } else if (id.z == 0) {
+        float w = loadField(id.x, id.y, id.z + 1, W_FIELD);
+        saveField(id.x, id.y, id.z, W_FIELD, w);
+
+    } else if (id.z == gridResolution.z - 1) {
+        float w = loadField(id.x, id.y, id.z - 1, W_FIELD);
+        saveField(id.x, id.y, id.z, W_FIELD, w);
+    }
+}

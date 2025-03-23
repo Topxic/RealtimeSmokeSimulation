@@ -16,7 +16,6 @@ vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
 }
 
 void main() {
-    vec3 color = vec3(0.11);
     vec3 rayDir = normalize(pos - cameraPos);
     float h = 1 / max(gridResolution.x, max(gridResolution.y, gridResolution.z));
     vec3 cuboidSize = gridResolution * h;
@@ -45,41 +44,72 @@ void main() {
     // Compute distance to next voxel boundary
     vec3 tMax = (nextVoxelBoundary - pos) / rayDir;
 
-
     // Traverse the grid using 3D DDA
     ivec3 voxelID = startID;
-    vec3 velocity = vec3(0);
-    int count = 0;
-    for (int i = 0; i < 1000; i++) {
 
-        if (interpolate) {
+    // Color
+    vec3 background = vec3(0.088, 0.084, 0.084);
+    vec3 smoke = vec3(0);
+    vec3 velocity = vec3(0);
+    vec3 pressure = vec3(0);
+    float transmittance = 1;
+
+    for (int i = 0; i < 100000; i++) {
+
+        float alpha, m, u, v, w, p;
+        if (interpolate) 
+        {
+            // TODO How should be interpolated and how do I get rid of the visible voxel boundaries
+            vec3 voxelCenter = vec3(voxelID) * gridSpacing;
+
             // Smoke 
-            color += 1 - sampleField(voxelID.x * gridSpacing, voxelID.y * gridSpacing, voxelID.z * gridSpacing, M_FIELD);
+            m = sampleField(voxelCenter.x, voxelCenter.y, voxelCenter.z, M_FIELD);
+            alpha = thickness * (1 - m);
+    
             // Velocity
-            velocity.x += sampleField(voxelID.x * gridSpacing, voxelID.y * gridSpacing, voxelID.z * gridSpacing, U_FIELD);
-            velocity.y += sampleField(voxelID.x * gridSpacing, voxelID.y * gridSpacing, voxelID.z * gridSpacing, V_FIELD);
-            velocity.z += sampleField(voxelID.x * gridSpacing, voxelID.y * gridSpacing, voxelID.z * gridSpacing, W_FIELD);
+            u = sampleField(voxelCenter.x, voxelCenter.y, voxelCenter.z, U_FIELD);
+            v = sampleField(voxelCenter.x, voxelCenter.y, voxelCenter.z, V_FIELD);
+            w = sampleField(voxelCenter.x, voxelCenter.y, voxelCenter.z, W_FIELD);
+            
+            // Pressure
+            p = sampleField(voxelCenter.x, voxelCenter.y, voxelCenter.z, P_FIELD);
         } else {
             // Smoke 
-            color += 1 - loadField(voxelID.x, voxelID.y, voxelID.z, M_FIELD);
+            m = loadField(voxelID.x, voxelID.y, voxelID.z, M_FIELD);
+            alpha = thickness * (1 - m);
+
             // Velocity
-            velocity.x += loadField(voxelID.x, voxelID.y, voxelID.z, U_FIELD);
-            velocity.y += loadField(voxelID.x, voxelID.y, voxelID.z, V_FIELD);
-            velocity.z += loadField(voxelID.x, voxelID.y, voxelID.z, W_FIELD);
+            u = loadField(voxelID.x, voxelID.y, voxelID.z, U_FIELD);
+            v = loadField(voxelID.x, voxelID.y, voxelID.z, V_FIELD);
+            w = loadField(voxelID.x, voxelID.y, voxelID.z, W_FIELD);
+
+            // Pressure
+            p = loadField(voxelID.x, voxelID.y, voxelID.z, P_FIELD);
         }
+
+        smoke += alpha;
+        velocity += alpha * vec3(u, v, w);
+        pressure += (1 - m) * p;
 
         // Obstacle
         float s = loadField(voxelID.x, voxelID.y, voxelID.z, S_FIELD);
         if (s < 1.f) {
-            color = vec3(s);
+            smoke += transmittance * vec3(0);
+            velocity += transmittance * vec3(0);
+            pressure += transmittance * vec3(0);
             break;
         } 
         
         // Stop if we reach the exit voxel with a small threshold for precision
-        count++;
         if (voxelID == stopID) {
+            smoke += transmittance * background;
+            velocity += transmittance * background;
+            pressure += transmittance * background;
             break;
         }
+
+        // Change transmittance
+        transmittance *= (1 - alpha);
 
         // Perform DDA step
         bvec3 mask = lessThan(tMax.xyz, tMax.yzx);
@@ -91,10 +121,13 @@ void main() {
         tMax += vec3(move) * tDelta;
     }
 
-    velocity /= count;
-
+    vec3 color = smoke;
     if (showVelocityField) {
         color = velocity;
+    }
+
+    if (showPressureField) {
+        color = pressure;
     }
 
     // Output final voxel color

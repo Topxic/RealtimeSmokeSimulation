@@ -20,11 +20,11 @@
 
 
 typedef struct {
-    glm::vec3 gridResolution = glm::vec3(64, 64, 128);
+    glm::vec3 gridResolution = glm::vec3(32, 32, 128);
     float gridSpacing = 1.5f;
-    int totalIterations = 30;
+    int totalIterations = 21;
     glm::vec3 gravity = glm::vec3(0, 0, 9.81);
-    float overrelaxation = 1.9f;
+    float overrelaxation = 0.91f;
     float density = 0.002f;
     bool showVelocityField = false;
     bool showPressureField = false;
@@ -32,6 +32,7 @@ typedef struct {
     bool reset = false;
     bool useFixedDT = true;
     float fixedDT = 1/120.f;
+    float thickness = 0.247;
 } SmokeParams;
 
 static void initGLEW()
@@ -98,7 +99,8 @@ static void buildGUI(SmokeParams &params, float dt)
     ImGui::SliderInt("Incompressability Iterations", &params.totalIterations, 0, 100);
     ImGui::SliderFloat("Fixed dt", &params.fixedDT, 0.001, 0.1);
     ImGui::SliderFloat("Grid Spacing", &params.gridSpacing, 0.001, 2);
-    ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.001, 0.1);
+    ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.1, 2);
+    ImGui::SliderFloat("Thickness", &params.thickness, 0, 1);
     ImGui::SliderFloat3("Gravity", &params.gravity[0], -10, 10);
     ImGui::SliderFloat("Density", &params.density, 0, 0.01);
     ImGui::Checkbox("Show velocity field", &params.showVelocityField);
@@ -120,6 +122,7 @@ static void setUniforms(graphics::Shader &shader, SmokeParams &params, float dt)
     shader.setUniform("gridSpacing", params.gridSpacing);
     shader.setUniform("overrelaxation", params.overrelaxation);
     shader.setUniform("gravity", params.gravity);
+    shader.setUniform("thickness", params.thickness);
     shader.setUniform("density", params.density);
     shader.setUniform("showVelocityField", params.showVelocityField);
     shader.setUniform("showPressureField", params.showPressureField);
@@ -161,10 +164,10 @@ int main()
 
     // Compile shaders
     auto applyGravityShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/applyGravity.comp"}));
-    // auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/forceIncompressibility.comp"}));
-    // auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/extrapolate.comp"}));
-    // auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/advectVelocities.comp"}));
-    // auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/copyVelocityBuffer.comp"}));
+    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/forceIncompressibility.comp"}));
+    auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/extrapolate.comp"}));
+    auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/advectVelocities.comp"}));
+    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/copyVelocityBuffer.comp"}));
     auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/advectSmoke.comp"}));
     auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/copySmokeBuffer.comp"}));
     auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/cube.vert", "../assets/shader/smoke/3d/cube.frag"}));
@@ -216,10 +219,10 @@ int main()
             if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_R))
             {
                 applyGravityShader.reload();
-                //forceIncompressibility.reload();
-                //extrapolate.reload();
-                //advectVelocities.reload();
-                //copyVelocityBuffer.reload();
+                forceIncompressibility.reload();
+                extrapolate.reload();
+                advectVelocities.reload();
+                copyVelocityBuffer.reload();
                 advectSmoke.reload();
                 copySmokeBuffer.reload();
                 smokeRenderShader.reload();
@@ -244,10 +247,10 @@ int main()
 
             // Update shader uniforms
             setUniforms(applyGravityShader, params, dt);
-            //setUniforms(forceIncompressibility, params, dt);
-            //setUniforms(extrapolate, params, dt);
-            //setUniforms(advectVelocities, params, dt);
-            //setUniforms(copyVelocityBuffer, params, dt);
+            setUniforms(forceIncompressibility, params, dt);
+            setUniforms(extrapolate, params, dt);
+            setUniforms(advectVelocities, params, dt);
+            setUniforms(copyVelocityBuffer, params, dt);
             setUniforms(advectSmoke, params, dt);
             setUniforms(copySmokeBuffer, params, dt);
             setUniforms(smokeRenderShader, params, dt);
@@ -255,16 +258,16 @@ int main()
             // Dispatch compute shaders
             applyGravityShader.dispatch(dispatchSize);
             //// Execute twice per iteration for preventing race conditions by evaluating in checkboard pattern
-            //for (int i = 0; i < 2 * params.totalIterations; i++)
-            //{
-            //    forceIncompressibility.bind();
-            //    forceIncompressibility.setUniform("currentIteration", i);
-            //    forceIncompressibility.unbind();
-            //    forceIncompressibility.dispatch(dispatchSize);
-            //}
-            //extrapolate.dispatch(dispatchSize);
-            //advectVelocities.dispatch(dispatchSize);
-            //copyVelocityBuffer.dispatch(dispatchSize);
+            for (int i = 0; i < 2 * params.totalIterations; i++)
+            {
+                forceIncompressibility.bind();
+                forceIncompressibility.setUniform("currentIteration", i);
+                forceIncompressibility.unbind();
+                forceIncompressibility.dispatch(dispatchSize);
+            }
+            extrapolate.dispatch(dispatchSize);
+            advectVelocities.dispatch(dispatchSize);
+            copyVelocityBuffer.dispatch(dispatchSize);
             advectSmoke.dispatch(dispatchSize);
             copySmokeBuffer.dispatch(dispatchSize);
         }

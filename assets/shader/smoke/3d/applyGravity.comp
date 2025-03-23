@@ -20,9 +20,9 @@ void main()
     saveField(id.x, id.y, id.z, P_FIELD, 0.f);
 
     // Fille smoke source
-    float xyDisk = distance(id.xy, gridResolution.xy / 2);
-    if (id.z == 0 && xyDisk < 10.f) {
-        float intensity = smoothstep(0.4, 0.9, xyDisk / 10.f);
+    vec2 xyRect = abs(id.xy - gridResolution.xy / 2);
+    if (id.z == 0 && xyRect.x < 5 && xyRect.y < 5) {
+        float intensity = smoothstep(0.4, 0.8, length(xyRect) / sqrt(50));
         saveField(id.x, id.y, id.z, M_FIELD, intensity);
     }
 
@@ -30,8 +30,7 @@ void main()
     saveField(id.x, id.y, id.z, S_FIELD, 1.f);
 
     // Center horizontal box
-    vec2 xyRect = abs(id.xy - gridResolution.xy / 2);
-    if (id.z == gridResolution.z / 2 && xyRect.x < 15 && xyRect.y < 15) {
+    if (abs(id.z - gridResolution.z / 2) < 2 && xyRect.x < 5 && xyRect.y < 5) {
         saveField(id.x, id.y, id.z, S_FIELD, 0);
     }
 

@@ -1,0 +1,16 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_X, local_size_z = LOCAL_SIZE_Z) in;
+
+void main()
+{
+    ivec3 id = ivec3(gl_GlobalInvocationID);
+
+    float u = loadField(id.x, id.y, id.z, NEXT_U_FIELD);
+    float v = loadField(id.x, id.y, id.z, NEXT_V_FIELD);
+    float w = loadField(id.x, id.y, id.z, NEXT_W_FIELD);
+
+    saveField(id.x, id.y, id.z, U_FIELD, u);
+    saveField(id.x, id.y, id.z, V_FIELD, v);
+    saveField(id.x, id.y, id.z, W_FIELD, w);
+}

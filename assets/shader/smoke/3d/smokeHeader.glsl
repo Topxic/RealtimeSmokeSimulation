@@ -68,6 +68,8 @@ uniform bool showPressureField;
 uniform bool interpolate;
 uniform bool reset;
 
+uniform float thickness;
+
 const float maxVelocity = 100.f;
 
 float loadField(int x, int y, int z, int field) {
@@ -298,22 +300,41 @@ float sampleField(float x, float y, float z, int field) {
     return sz * c0 + tz * c1;
 }
 
-/*
-float avgU(int x, int y) {
-    float u1 = loadField(x, y - 1, U_FIELD);
-    float u2 = loadField(x, y, U_FIELD);
-    float u3 = loadField(x + 1, y - 1, U_FIELD);
-    float u4 = loadField(x + 1, y, U_FIELD);
-    return (u1 + u2 + u3 + u4) / 4.f;
+float avgU(int x, int y, int z) {
+    float avgU = loadField(x, y - 1, z, U_FIELD);
+    avgU += loadField(x, y, z, U_FIELD);
+    avgU += loadField(x + 1, y - 1, z, U_FIELD);
+    avgU += loadField(x + 1, y, z, U_FIELD);
+
+    avgU += loadField(x, y - 1, z - 1, U_FIELD);
+    avgU += loadField(x, y, z - 1, U_FIELD);
+    avgU += loadField(x + 1, y - 1, z - 1, U_FIELD);
+    avgU += loadField(x + 1, y, z - 1, U_FIELD);
+    return avgU / 8.f;
 }
 
-float avgV(int x, int y) {
-    float v1 = loadField(x - 1, y, V_FIELD);
-    float v2 = loadField(x, y, V_FIELD);
-    float v3 = loadField(x - 1, y + 1, V_FIELD);
-    float v4 = loadField(x, y + 1, V_FIELD);
-    return (v1 + v2 + v3 + v4) / 4.f;
+float avgV(int x, int y, int z) {
+    float avgV = loadField(x - 1, y, z, V_FIELD);
+    avgV = loadField(x, y, z, V_FIELD);
+    avgV = loadField(x - 1, y + 1, z, V_FIELD);
+    avgV = loadField(x, y + 1, z, V_FIELD);
+
+    avgV = loadField(x - 1, y, z - 1, V_FIELD);
+    avgV = loadField(x, y, z - 1, V_FIELD);
+    avgV = loadField(x - 1, y + 1, z - 1, V_FIELD);
+    avgV = loadField(x, y + 1, z - 1, V_FIELD);
+    return avgV / 8.f;
 }
 
+float avgW(int x, int y, int z) {
+    float avgW = loadField(x, y - 1, z, W_FIELD);
+    avgW += loadField(x, y, z, W_FIELD);
+    avgW += loadField(x, y - 1, z + 1, W_FIELD);
+    avgW += loadField(x, y, z + 1, W_FIELD);
 
-*/
+    avgW += loadField(x - 1, y - 1, z, W_FIELD);
+    avgW += loadField(x - 1, y, z, W_FIELD);
+    avgW += loadField(x - 1, y - 1, z + 1, W_FIELD);
+    avgW += loadField(x - 1, y, z + 1, W_FIELD);
+    return avgW / 8.f;
+}

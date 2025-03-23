@@ -1,0 +1,59 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = LOCAL_SIZE_Z) in;
+
+void main()
+{
+    ivec3 id = ivec3(gl_GlobalInvocationID);
+
+    float h = gridSpacing;
+    float h2 = 0.5 * h;
+    float s = loadField(id.x, id.y, id.z, S_FIELD);
+
+    float u = loadField(id.x, id.y, id.z, U_FIELD);
+    float v = loadField(id.x, id.y, id.z, V_FIELD);
+    float w = loadField(id.x, id.y, id.z, W_FIELD);
+    
+    // u-component
+    if (s != 0.f && loadField(id.x - 1, id.y, id.z, S_FIELD) != 0.f && id.y < gridResolution.y - 1 && id.z < gridResolution.z - 1) {
+        float x = id.x * h;
+        float y = id.y * h + h2;
+        float z = id.z * h + h2;
+        float avgV = avgV(id.x, id.y, id.z);
+        float avgW = avgW(id.x, id.y, id.z);
+        x -= dt * u;
+        y -= dt * avgV;
+        z -= dt * avgW;
+        u = sampleField(x, y, z, U_FIELD);   
+    }
+    
+    // v-component
+    if (s != 0.f && loadField(id.x, id.y - 1, id.z, S_FIELD) != 0.f && id.x < gridResolution.x - 1 && id.z < gridResolution.z - 1) {
+        float x = id.x * h + h2;
+        float y = id.y * h;
+        float z = id.z * h + h2;
+        float avgU = avgU(id.x, id.y, id.z);
+        float avgW = avgW(id.x, id.y, id.z);
+        x -= dt * avgU;
+        y -= dt * v;
+        z -= dt * avgW;
+        v = sampleField(x, y, z, V_FIELD);    
+    }
+    
+    // w-component
+    if (s != 0.f && loadField(id.x, id.y, id.z - 1, S_FIELD) != 0.f && id.x < gridResolution.x - 1 && id.y < gridResolution.y - 1) {
+        float x = id.x * h + h2;
+        float y = id.y * h + h2;
+        float z = id.z * h;
+        float avgU = avgU(id.x, id.y, id.z);
+        float avgV = avgV(id.x, id.y, id.z);
+        x -= dt * avgU;
+        y -= dt * avgV;
+        z -= dt * w;
+        w = sampleField(x, y, z, W_FIELD);
+    }
+    
+    saveField(id.x, id.y, id.z, NEXT_U_FIELD, u);
+    saveField(id.x, id.y, id.z, NEXT_V_FIELD, v);
+    saveField(id.x, id.y, id.z, NEXT_W_FIELD, w);
+}
