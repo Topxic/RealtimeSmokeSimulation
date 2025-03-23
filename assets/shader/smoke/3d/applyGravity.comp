@@ -1,0 +1,58 @@
+#include "smokeHeader.glsl"
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_X, local_size_z = LOCAL_SIZE_Z) in;
+
+void main()
+{   
+    ivec3 id = ivec3(gl_GlobalInvocationID);
+    vec3 center = gridResolution / 2;
+
+    if (reset) {
+        saveField(id.x, id.y, id.z, M_FIELD, 1.f);
+        saveField(id.x, id.y, id.z, NEXT_M_FIELD, 1.f);
+        saveField(id.x, id.y, id.z, U_FIELD, 0.f);
+        saveField(id.x, id.y, id.z, V_FIELD, 0.f);
+        saveField(id.x, id.y, id.z, W_FIELD, 0.f);
+        saveField(id.x, id.y, id.z, P_FIELD, 0.f);
+    }
+
+    // Reset pressure
+    saveField(id.x, id.y, id.z, P_FIELD, 0.f);
+
+    // Fille smoke source
+    float xyDisk = distance(id.xy, gridResolution.xy / 2);
+    if (id.z == 0 && xyDisk < 10.f) {
+        float intensity = smoothstep(0.4, 0.9, xyDisk / 10.f);
+        saveField(id.x, id.y, id.z, M_FIELD, intensity);
+    }
+
+    // Set smoke permability of voxel (1: Smoke can pass, 0: Blocked)
+    saveField(id.x, id.y, id.z, S_FIELD, 1.f);
+
+    // Center horizontal box
+    vec2 xyRect = abs(id.xy - gridResolution.xy / 2);
+    if (id.z == gridResolution.z / 2 && xyRect.x < 15 && xyRect.y < 15) {
+        saveField(id.x, id.y, id.z, S_FIELD, 0);
+    }
+
+    // Apply gravity
+    float s = loadField(id.x, id.y, id.z, S_FIELD);
+    if (s == 0.f) {
+        return;
+    }
+
+    float u = loadField(id.x, id.y, id.z, U_FIELD);
+    float v = loadField(id.x, id.y, id.z, V_FIELD);
+    float w = loadField(id.x, id.y, id.z, W_FIELD);
+
+    u += dt * gravity.x;
+    v += dt * gravity.y;
+    w += dt * gravity.z;
+    u = clamp(u, -maxVelocity, maxVelocity);
+    v = clamp(v, -maxVelocity, maxVelocity);
+    w = clamp(w, -maxVelocity, maxVelocity);
+
+    saveField(id.x, id.y, id.z, U_FIELD, u);
+    saveField(id.x, id.y, id.z, V_FIELD, v);
+    saveField(id.x, id.y, id.z, W_FIELD, w);
+}
