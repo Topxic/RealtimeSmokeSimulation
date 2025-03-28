@@ -18,8 +18,14 @@
 
 #include "util.h"
 
+#ifdef _WIN32
+    #define ASSETS_PATH_RELATIVE "../../assets"
+#else
+    #define ASSETS_PATH_RELATIVE "../assets"
+#endif
 
-typedef struct {
+
+struct SmokeParams {
     glm::vec3 gridResolution = glm::vec3(32, 32, 128);
     float gridSpacing = 1.5f;
     int totalIterations = 21;
@@ -33,7 +39,7 @@ typedef struct {
     bool useFixedDT = true;
     float fixedDT = 1/120.f;
     float thickness = 0.247;
-} SmokeParams;
+};
 
 static void initGLEW()
 {
@@ -137,6 +143,7 @@ int main()
 {
     // Print current working directory:
     tlog::info() << "Current working directory: " << std::filesystem::current_path();
+    tlog::info() << "Assets directory: " << ASSETS_PATH_RELATIVE;
 
     auto params = SmokeParams();
 
@@ -163,14 +170,15 @@ int main()
     auto cube = graphics::Mesh(createCubeVertices(params.gridResolution), createCubeIndices());
 
     // Compile shaders
-    auto applyGravityShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/applyGravity.comp"}));
-    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/forceIncompressibility.comp"}));
-    auto extrapolate = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/extrapolate.comp"}));
-    auto advectVelocities = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/advectVelocities.comp"}));
-    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/copyVelocityBuffer.comp"}));
-    auto advectSmoke = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/advectSmoke.comp"}));
-    auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/copySmokeBuffer.comp"}));
-    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({"../assets/shader/smoke/3d/cube.vert", "../assets/shader/smoke/3d/cube.frag"}));
+    const std::string smokeShaders = std::string(ASSETS_PATH_RELATIVE) + "/shader/smoke";
+    auto applyGravityShader = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/applyGravity.comp"}));
+    auto forceIncompressibility = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/forceIncompressibility.comp"}));
+    auto extrapolate = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/extrapolate.comp"}));
+    auto advectVelocities = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/advectVelocities.comp"}));
+    auto copyVelocityBuffer = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/copyVelocityBuffer.comp"}));
+    auto advectSmoke = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/advectSmoke.comp"}));
+    auto copySmokeBuffer = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/copySmokeBuffer.comp"}));
+    auto smokeRenderShader = graphics::Shader(std::vector<std::string>({smokeShaders + "/3d/cube.vert", smokeShaders + "/3d/cube.frag"}));
 
     // Initialize SSBOs
     auto res = params.gridResolution;
