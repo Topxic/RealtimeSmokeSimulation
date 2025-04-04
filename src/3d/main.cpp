@@ -20,7 +20,7 @@
 
 
 typedef struct {
-    glm::vec3 gridResolution = glm::vec3(32, 32, 128);
+    glm::vec3 gridResolution = glm::vec3(33, 33, 128);
     float gridSpacing = 1.5f;
     int totalIterations = 21;
     glm::vec3 gravity = glm::vec3(0, 0, 9.81);
@@ -28,11 +28,11 @@ typedef struct {
     float density = 0.002f;
     bool showVelocityField = false;
     bool showPressureField = false;
-    bool interpolate = true;
+    bool interpolate = false;
     bool reset = false;
     bool useFixedDT = true;
     float fixedDT = 1/120.f;
-    float thickness = 0.247;
+    float thickness = 0.047;
 } SmokeParams;
 
 static void initGLEW()
@@ -150,8 +150,8 @@ int main()
     // Init camera and controls
     auto aspectRatio = getAspectRatio();
     auto camera = controls::Camera(
-        glm::vec3(0, 0, 1.2),
-        glm::vec3(0, 0, -1),
+        glm::vec3(-0.549534, -0.369212, 0.227356),
+        glm::vec3(0.785052, 0.527448, -0.324796),
         glm::vec3(0, 1, 0)
     );
     auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();

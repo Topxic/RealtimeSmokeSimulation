@@ -29,8 +29,19 @@ void main()
     // Set smoke permability of voxel (1: Smoke can pass, 0: Blocked)
     saveField(id.x, id.y, id.z, S_FIELD, 1.f);
 
-    // Center horizontal box
-    if (abs(id.z - gridResolution.z / 2) < 2 && xyRect.x < 5 && xyRect.y < 5) {
+    // 4 Spltting boxes
+    vec3 offset = vec3(1, 1, gridResolution.z / 4);
+    vec3 size = vec3(6, 6, 2);
+    if (abs(id.z - offset.z) < size.z 
+        && abs(center.x - id.x) > offset.x && abs(center.x - id.x) < size.x + offset.x
+        && abs(center.y - id.y) > offset.y && abs(center.y - id.y) < size.y + offset.y) {
+        saveField(id.x, id.y, id.z, S_FIELD, 0);
+    }
+
+    // 1 box above
+    if (abs(id.z - 2 * offset.z) < size.z 
+        && abs(center.x - id.x) < size.x + offset.x
+        && abs(center.y - id.y) < size.y + offset.y) {
         saveField(id.x, id.y, id.z, S_FIELD, 0);
     }
 

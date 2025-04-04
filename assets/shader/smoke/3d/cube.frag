@@ -6,6 +6,7 @@ in vec3 norm;
 out vec4 fragColor;
 
 uniform vec3 cameraPos;
+const vec3 lightDir = normalize(vec3(-1));
 
 vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
     vec3 t1 = (-cuboidSize - origin) / dir;
@@ -46,6 +47,7 @@ void main() {
 
     // Traverse the grid using 3D DDA
     ivec3 voxelID = startID;
+    bvec3 move;
 
     // Color
     vec3 background = vec3(0.088, 0.084, 0.084);
@@ -94,9 +96,24 @@ void main() {
         // Obstacle
         float s = loadField(voxelID.x, voxelID.y, voxelID.z, S_FIELD);
         if (s < 1.f) {
-            smoke += transmittance * vec3(0);
-            velocity += transmittance * vec3(0);
-            pressure += transmittance * vec3(0);
+            vec3 normal = normalize(-sign(tMax) * vec3(move));
+            vec3 ambientColor = vec3(0.24725, 0.2245, 0.0645);
+            vec3 diffuseColor = vec3(0.34615, 0.3143, 0.0903);
+            vec3 specularColor = vec3(0.797357, 0.723991, 0.208006);
+            float shininess = 83.2;
+            
+            // Blinn-Phong shading
+            vec3 viewDir = rayDir;
+            vec3 halfVector = normalize(lightDir + viewDir);
+            
+            vec3 ambient = ambientColor;
+            vec3 diffuse = max(dot(lightDir, normal), 0.0) * diffuseColor;
+            vec3 specular = pow(max(dot(normal, halfVector), 0.0), shininess) * specularColor;
+            
+            vec3 obstacle = ambient + diffuse + specular;
+            smoke += transmittance * obstacle;
+            velocity += transmittance * obstacle;
+            pressure += transmittance * obstacle;
             break;
         } 
         
@@ -113,7 +130,6 @@ void main() {
 
         // Perform DDA step
         bvec3 mask = lessThan(tMax.xyz, tMax.yzx);
-        bvec3 move;
         move.x = mask.x && !mask.z;
         move.y = mask.y && !mask.x;
         move.z = !(move.x || move.y);
@@ -123,7 +139,7 @@ void main() {
 
     vec3 color = smoke;
     if (showVelocityField) {
-        color = velocity;
+        color = abs(velocity);
     }
 
     if (showPressureField) {
