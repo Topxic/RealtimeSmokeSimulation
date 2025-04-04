@@ -39,7 +39,7 @@ struct SmokeParams {
     bool useFixedDT = true;
     float fixedDT = 1/120.f;
     float thickness = 0.047;
-} SmokeParams;
+};
 
 static void initGLEW()
 {
