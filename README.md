@@ -1,28 +1,19 @@
-# Simple2DSmokeSimulation
-SmokeSimulation2DOpenCL is a C++ project that implements a 2D smoke simulation using an Eulerian grid-based approach. 
-It utilizes the power of the GPU by accelerating computations through compute shaders. 
-The simulation consists of several steps performed in each iteration, including applying gravity on the velocity field, 
-enforcing incompressibility within the field for a defined number of iterations, and applying advection.
-
+#SimpleRealtimeSmokeSimulation
+SimpleRealtimeSmokeSimulation is a lightweight C++ application that demonstrates a real-time 2D smoke simulation using a grid-based solver for incompressible fluid dynamics. The simulation is GPU-accelerated using OpenGL compute shaders, enabling interactive performance.
 ![](SmokeSimulation2DOpenCL.gif)
 
 ## Prerequisites
-Before running Simple2DSmokeSimulation, make sure you have the following dependencies installed:
-
-C++ compiler with C++14 support
-CMake (version >= 3.22.1)
-OpenGL and GLEW
+Before building and running SimpleRealtimeSmokeSimulation, make sure you have the following dependencies installed:
+- C++ compiler with C++14 support
+- CMake (version >= 3.22.1)
+- OpenGL and GLEW
 
 ## Installation
-Clone the repository:
+Clone the repository and dependencies:
 ```bash
-git clone git@github.com:Topxic/SmokeSimulation2DOpenCL.git
-cd SmokeSimulation2DOpenCL
+git clone git@github.com:Topxic/RealtimeSmokeSimulation.git --recursive
 ```
-Download git submodules:
-```bash
-git submodule update --init --recursive
-```
+### Linux
 Install dependencies:
 ```bash
 sudo apt-get update
@@ -33,9 +24,6 @@ Build cmake project:
 mkdir build
 cd build
 cmake ..
-make
+make all
 ```
-Run the program:
-```bash
-./smoke-simulation
-```
+### Windows (TODO)
