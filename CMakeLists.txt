@@ -18,3 +18,11 @@ set(PROJECT_3D "3d-smoke-simulation")
 file(GLOB SRC_FILES_3D src/3d/*.cpp)
 add_executable(${PROJECT_3D} ${SRC_FILES_3D})
 target_link_libraries(${PROJECT_3D} PRIVATE EasyOpenGL)
+
+# Define 3D Smoke Simulation project
+set(PROJECT_CLOUD "cloud")
+file(GLOB SRC_FILES_CLOUD src/cloud/*.cpp)
+add_executable(${PROJECT_CLOUD} ${SRC_FILES_CLOUD})
+target_link_libraries(${PROJECT_CLOUD} PRIVATE EasyOpenGL)
+
+include_directories(external/EasyOpenGL)
