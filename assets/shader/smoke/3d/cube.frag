@@ -6,6 +6,7 @@ in vec3 norm;
 out vec4 fragColor;
 
 uniform vec3 cameraPos;
+uniform int ddaDepth;
 const vec3 lightDir = normalize(vec3(-1));
 
 vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
@@ -18,8 +19,8 @@ vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
 
 void main() {
     vec3 rayDir = normalize(pos - cameraPos);
-    float h = 1 / max(gridResolution.x, max(gridResolution.y, gridResolution.z));
-    vec3 cuboidSize = gridResolution * h;
+    float cellSize = 1 / max(gridResolution.x, max(gridResolution.y, gridResolution.z));
+    vec3 cuboidSize = gridResolution * cellSize;
 
     // Compute world space ray entry and exit positions
     vec3 start = pos;
@@ -27,20 +28,20 @@ void main() {
 
     // Convert world positions to voxel indices
     ivec3 startID = ivec3(
-        clamp((start + 0.5 * cuboidSize) / h, vec3(0), gridResolution - 1)
+        clamp((start + 0.5 * cuboidSize) / cellSize, vec3(0), gridResolution - 1)
     );
     ivec3 stopID = ivec3(
-        clamp((stop + 0.5 * cuboidSize) / h, vec3(0), gridResolution - 1)
+        clamp((stop + 0.5 * cuboidSize) / cellSize, vec3(0), gridResolution - 1)
     );
 
     // Step direction: +1 or -1 depending on ray direction
     vec3 raySign = sign(rayDir);
 
     // How far we must move in each axis to cross one voxel
-    vec3 tDelta = abs(h / rayDir);
+    vec3 tDelta = abs(cellSize / rayDir);
 
     // Compute the next voxel boundary position
-    vec3 nextVoxelBoundary = (startID + step(0, rayDir)) * h - 0.5 * cuboidSize;
+    vec3 nextVoxelBoundary = (startID + step(0, rayDir)) * cellSize - 0.5 * cuboidSize;
 
     // Compute distance to next voxel boundary
     vec3 tMax = (nextVoxelBoundary - pos) / rayDir;
@@ -56,7 +57,7 @@ void main() {
     vec3 pressure = vec3(0);
     float transmittance = 1;
 
-    for (int i = 0; i < 100000; i++) {
+    for (int i = 0; i < ddaDepth; i++) {
 
         float alpha, m, u, v, w, p;
         if (interpolate) 

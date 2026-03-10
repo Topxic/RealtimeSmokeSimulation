@@ -39,6 +39,7 @@ struct SmokeParams {
     bool useFixedDT = true;
     float fixedDT = 1/120.f;
     float thickness = 0.047;
+    int ddaDepth = 200;
 };
 
 static void initGLEW()
@@ -106,7 +107,8 @@ static void buildGUI(SmokeParams &params, float dt)
     ImGui::SliderFloat("Fixed dt", &params.fixedDT, 0.001, 0.1);
     ImGui::SliderFloat("Grid Spacing", &params.gridSpacing, 0.001, 2);
     ImGui::SliderFloat("Overrelaxation", &params.overrelaxation, 0.1, 2);
-    ImGui::SliderFloat("Thickness", &params.thickness, 0, 1);
+    ImGui::SliderFloat("Thickness", &params.thickness, 0, 5);
+    ImGui::SliderInt("DDA depth", &params.ddaDepth, 1, 250);
     ImGui::SliderFloat3("Gravity", &params.gravity[0], -10, 10);
     ImGui::SliderFloat("Density", &params.density, 0, 0.01);
     ImGui::Checkbox("Show velocity field", &params.showVelocityField);
@@ -129,6 +131,7 @@ static void setUniforms(graphics::Shader &shader, SmokeParams &params, float dt)
     shader.setUniform("overrelaxation", params.overrelaxation);
     shader.setUniform("gravity", params.gravity);
     shader.setUniform("thickness", params.thickness);
+    shader.setUniform("ddaDepth", params.ddaDepth);
     shader.setUniform("density", params.density);
     shader.setUniform("showVelocityField", params.showVelocityField);
     shader.setUniform("showPressureField", params.showPressureField);
