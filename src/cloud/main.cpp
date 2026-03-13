@@ -31,8 +31,8 @@ struct CloudParams {
     float sampleStepSize = 0.01f;
     float time;
 
-    int voronoiSampleRes = 64;
-    int voronoiTextureRes = 1024;
+    int voronoiSampleRes = 2;
+    int voronoiTextureRes = 32;
     bool reloadVoronoi;
 };
 
@@ -131,40 +131,47 @@ static std::vector<glm::vec4> createVoronoiNoise(const CloudParams& params)
     // Create voronoi texture
     const int texRes = params.voronoiTextureRes;
     const int gridRes = params.voronoiSampleRes;
-    auto samples = std::vector<glm::vec2>(gridRes * gridRes);
-    auto voronoiNoise = std::vector<glm::vec4>(texRes * texRes);
+    const int gridSize = gridRes * gridRes * gridRes;
+    const int texSize = texRes * texRes * texRes;
+    auto samples = std::vector<glm::vec3>(gridSize);
+    auto voronoiNoise = std::vector<glm::vec4>(texSize);
     srand(time(0));
-    for (int i = 0; i < gridRes * gridRes; ++i) {
+    for (int i = 0; i < gridSize; ++i) {
         samples[i].x = randomFloat();
         samples[i].y = randomFloat();
+        samples[i].z = randomFloat();
     }
 
     const float cellSize = texRes / static_cast<float>(gridRes);
     for (int x = 0; x < texRes; ++x) {
         for (int y = 0; y < texRes; ++y) {
+            for (int z = 0; z < texRes; ++z) {
 
-            // Maximum possible distance
-            float minDistance = glm::length(cellSize);
-            glm::vec2 pixel = {x, y};
-            glm::ivec2 gridCell = glm::ivec2(pixel / cellSize);
+                // Maximum possible distance
+                float minDistance = glm::length(glm::vec3(cellSize));
+                glm::vec3 pixel = {x, y, z};
+                glm::ivec3 gridCell = glm::ivec3(pixel / cellSize);
 
-            for (int i = -1; i <= 1; ++i) {
-                for (int j = -1; j <= 1; ++j) {
+                for (int i = -1; i <= 1; ++i) {
+                    for (int j = -1; j <= 1; ++j) {
+                        for (int k = -1; k <= 1; ++k) {
 
-                    glm::vec2 cellIdx = gridCell + glm::ivec2{i, j};      
+                            glm::vec3 cellIdx = gridCell + glm::ivec3{i, j, k};      
 
-                    int idx = cellIdx.y * gridRes + cellIdx.x;
-                    if (idx >= 0 && idx < gridRes * gridRes) {
-                        glm::vec2 sample = (cellIdx + samples[idx]) * cellSize;
-                        glm::vec2 diff = pixel - sample;
-                        float dist = glm::length(diff);
-                        minDistance = glm::min(minDistance, dist);
-                    } 
+                            int idx = cellIdx.z * gridRes * gridRes + cellIdx.y * gridRes + cellIdx.x;
+                            if (idx >= 0 && idx < gridSize) {
+                                glm::vec3 sample = (cellIdx + samples[idx]) * cellSize;
+                                glm::vec3 diff = pixel - sample;
+                                float dist = glm::length(diff);
+                                minDistance = glm::min(minDistance, dist);
+                            } 
+                        }
+                    }
                 }
-            }
-            minDistance /= glm::length(cellSize);
+                minDistance /= glm::length(glm::vec3(cellSize));
 
-            voronoiNoise[y * texRes + x] = glm::vec4(minDistance, minDistance, minDistance, 1.0);
+                voronoiNoise[z * texRes * texRes + y * texRes + x] = glm::vec4(minDistance, minDistance, minDistance, 1.0);
+            }
         }
     }
     return voronoiNoise;
@@ -203,7 +210,7 @@ int main()
     const std::string smokeShaders = std::string(ASSETS_PATH_RELATIVE) + "/shader/cloud";
     auto cloudShader = graphics::Shader(std::vector<std::string>({smokeShaders + "/cube.vert", smokeShaders + "/cube.frag"}));
     auto voronoiNoise = createVoronoiNoise(params);
-    auto voronoiTex = graphics::Texture(voronoiNoise, params.voronoiTextureRes, params.voronoiTextureRes);
+    auto voronoiTex = graphics::Texture3D(voronoiNoise, glm::ivec3(params.voronoiTextureRes));
 
     auto currTime = std::chrono::steady_clock::now();
     auto prevTime = currTime;
@@ -250,7 +257,7 @@ int main()
         { // Update
             if (params.reloadVoronoi) {
                 auto voronoiNoise = createVoronoiNoise(params);
-                voronoiTex.update(voronoiNoise, 0, 0, params.voronoiTextureRes, params.voronoiTextureRes);
+                voronoiTex.update(voronoiNoise, glm::ivec3(0), glm::ivec3(params.voronoiTextureRes));
                 params.reloadVoronoi = false;
             }
             // Update shader uniforms
