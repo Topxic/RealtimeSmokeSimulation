@@ -16,7 +16,7 @@
 #include "controls/camera.h"
 #include "controls/gui.h"
 
-#include "util.h"
+#include "../util.h"
 
 #ifdef _WIN32
     #define ASSETS_PATH_RELATIVE "../../assets"

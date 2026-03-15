@@ -16,7 +16,7 @@
 #include "controls/camera.h"
 #include "controls/gui.h"
 
-#include "../3d/util.h"
+#include "../util.h"
 
 #ifdef _WIN32
     #define ASSETS_PATH_RELATIVE "../../assets"
@@ -26,14 +26,30 @@
 
 
 struct CloudParams {
-    glm::vec3 cloudColor = glm::vec3(0, 1, 0);
+    glm::vec3 cloudColor = glm::vec3(1, 1, 1);
     float absorption = 0.9f;
-    float sampleStepSize = 0.01f;
+    float sampleStepSize = 0.001f;
     float time;
+    float border = 0.25;
 
-    int voronoiSampleRes = 2;
-    int voronoiTextureRes = 32;
+    glm::ivec3 voronoiResolution = {32, 32, 32};
+    float c1 = 0.625f;
+    float c2 = 0.25f;
+    float c3 = 0.125f;
+
+    glm::ivec3 perlinResolution = {32, 32, 32};
+    float amplitude = 1.0; 
+    int octaveCount = 5; 
+    float persistence = 0.5; 
+    float lacunarity = 2.0;  
+    float scale = 4.0;  
+    int seed = 2309461;
+
     bool reloadVoronoi;
+    bool reloadPerlin;
+    bool showPerlin;
+    bool showVoronoi;
+    float showTextureDepth;
 };
 
 static void initGLEW()
@@ -74,7 +90,7 @@ static void initGLEW()
 
 static void initGLFW(graphics::Window &window, const CloudParams &params)
 {
-    if (!window.init("3d-smoke-simulation", 800, 600))
+    if (!window.init("3d-smoke-simulation", 1024, 720))
     {
         exit(EXIT_FAILURE);
     }
@@ -102,10 +118,27 @@ static void buildGUI(CloudParams &params, float dt)
     ImGui::Text("FPS: %.1f", 1 / dt);
     ImGui::SliderFloat3("Cloud Color", &params.cloudColor[0], 0, 1);
     ImGui::SliderFloat("Absorption", &params.absorption, 0.0f, 1.0f);
+    ImGui::SliderFloat("Border", &params.border, 0.0f, 1.0f);
     ImGui::SliderFloat("Sample Step Size", &params.sampleStepSize, 0.001f, 0.1f);
-    ImGui::InputInt("Voronoi sample resolution", &params.voronoiSampleRes);
-    ImGui::InputInt("Voronoi texture resolution", &params.voronoiTextureRes);
+    
+    ImGui::InputInt3("Voronoi texture resolution", &params.voronoiResolution[0]);
+    ImGui::SliderFloat("Voronoi c1", &params.c1, 0.0f, 1.0f);
+    ImGui::SliderFloat("Voronoi c2", &params.c2, 0.0f, 1.0f);
+    ImGui::SliderFloat("Voronoi c3", &params.c3, 0.0f, 1.0f);
     params.reloadVoronoi = ImGui::Button("Update voronoi texture");
+
+    ImGui::InputInt3("Perlin texture resolution", &params.perlinResolution[0]);
+    ImGui::InputInt("Perlin octave count", &params.octaveCount);
+    ImGui::InputFloat("Perlin persistence", &params.persistence);
+    ImGui::InputFloat("Perlin lacunarity", &params.lacunarity);
+    ImGui::InputFloat("Perlin amplitude", &params.amplitude);
+    ImGui::InputFloat("Perlin scale", &params.scale);
+    ImGui::InputInt("Perlin seed", &params.seed);
+    params.reloadPerlin = ImGui::Button("Update perlin texture");
+
+    ImGui::Checkbox("Show voronoi", &params.showVoronoi);
+    ImGui::Checkbox("Show perlin", &params.showPerlin);
+    ImGui::SliderFloat("Texture depth", &params.showTextureDepth, 0.0f, 1.0f);
     ImGui::End();
 }
 
@@ -118,64 +151,12 @@ static void setUniforms(graphics::Shader &shader, CloudParams &params, float dt)
     shader.setUniform("absorption", params.absorption);
     shader.setUniform("sampleStepSize", params.sampleStepSize);
     shader.setUniform("time", time);
+    shader.setUniform("border", params.border);
+    shader.setUniform("showPerlin", params.showPerlin);
+    shader.setUniform("showVoronoi", params.showVoronoi);
+    shader.setUniform("showTextureDepth", params.showTextureDepth);
     shader.unbind();
 }
-
-static float randomFloat() 
-{
-    return (float)(rand()) / (float)(RAND_MAX);
-}
-
-static std::vector<glm::vec4> createVoronoiNoise(const CloudParams& params) 
-{
-    // Create voronoi texture
-    const int texRes = params.voronoiTextureRes;
-    const int gridRes = params.voronoiSampleRes;
-    const int gridSize = gridRes * gridRes * gridRes;
-    const int texSize = texRes * texRes * texRes;
-    auto samples = std::vector<glm::vec3>(gridSize);
-    auto voronoiNoise = std::vector<glm::vec4>(texSize);
-    srand(time(0));
-    for (int i = 0; i < gridSize; ++i) {
-        samples[i].x = randomFloat();
-        samples[i].y = randomFloat();
-        samples[i].z = randomFloat();
-    }
-
-    const float cellSize = texRes / static_cast<float>(gridRes);
-    for (int x = 0; x < texRes; ++x) {
-        for (int y = 0; y < texRes; ++y) {
-            for (int z = 0; z < texRes; ++z) {
-
-                // Maximum possible distance
-                float minDistance = glm::length(glm::vec3(cellSize));
-                glm::vec3 pixel = {x, y, z};
-                glm::ivec3 gridCell = glm::ivec3(pixel / cellSize);
-
-                for (int i = -1; i <= 1; ++i) {
-                    for (int j = -1; j <= 1; ++j) {
-                        for (int k = -1; k <= 1; ++k) {
-
-                            glm::vec3 cellIdx = gridCell + glm::ivec3{i, j, k};      
-
-                            int idx = cellIdx.z * gridRes * gridRes + cellIdx.y * gridRes + cellIdx.x;
-                            if (idx >= 0 && idx < gridSize) {
-                                glm::vec3 sample = (cellIdx + samples[idx]) * cellSize;
-                                glm::vec3 diff = pixel - sample;
-                                float dist = glm::length(diff);
-                                minDistance = glm::min(minDistance, dist);
-                            } 
-                        }
-                    }
-                }
-                minDistance /= glm::length(glm::vec3(cellSize));
-
-                voronoiNoise[z * texRes * texRes + y * texRes + x] = glm::vec4(minDistance, minDistance, minDistance, 1.0);
-            }
-        }
-    }
-    return voronoiNoise;
-} 
 
 int main()
 {
@@ -195,7 +176,7 @@ int main()
     // Init camera and controls
     auto aspectRatio = getAspectRatio();
     auto camera = controls::Camera(
-        glm::vec3(2, 1, 2),
+        glm::vec3(1, 0.5, 1),
         glm::vec3(0, 0, 0)
     );
     auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
@@ -204,13 +185,17 @@ int main()
     window.hideMouse();
 
     // Initalize the cube mesh
-    auto cube = graphics::Mesh(createCubeVertices(glm::vec3(1, 1, 1)), createCubeIndices());
+    auto cube = graphics::Mesh(geometry::createCubeVertices(glm::vec3(1, 1, 1)), geometry::createCubeIndices());
 
     // Compile shaders
     const std::string smokeShaders = std::string(ASSETS_PATH_RELATIVE) + "/shader/cloud";
     auto cloudShader = graphics::Shader(std::vector<std::string>({smokeShaders + "/cube.vert", smokeShaders + "/cube.frag"}));
-    auto voronoiNoise = createVoronoiNoise(params);
-    auto voronoiTex = graphics::Texture3D(voronoiNoise, glm::ivec3(params.voronoiTextureRes));
+
+    // Create noise textures
+    auto voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3);
+    auto voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
+    auto perlinNoise = perlin::perlinNoise(params.perlinResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed);
+    auto perlinTex = graphics::Texture3D(perlinNoise, params.voronoiResolution);
 
     auto currTime = std::chrono::steady_clock::now();
     auto prevTime = currTime;
@@ -255,9 +240,22 @@ int main()
         }
 
         { // Update
+            if (params.reloadPerlin) {
+                perlinNoise = perlin::perlinNoise(params.perlinResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed);
+                if (glm::any(glm::lessThan(perlinTex.resolution, params.perlinResolution))) {
+                    perlinTex = graphics::Texture3D(perlinNoise, params.voronoiResolution);
+                } else {
+                    perlinTex.update(perlinNoise, glm::ivec3(0), glm::ivec3(params.perlinResolution));
+                }
+                params.reloadPerlin = false;
+            }
             if (params.reloadVoronoi) {
-                auto voronoiNoise = createVoronoiNoise(params);
-                voronoiTex.update(voronoiNoise, glm::ivec3(0), glm::ivec3(params.voronoiTextureRes));
+                voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3);
+                if (glm::any(glm::lessThan(voronoiTex.resolution, params.voronoiResolution))) {
+                    voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
+                } else {
+                    voronoiTex.update(voronoiNoise, glm::ivec3(0), glm::ivec3(params.voronoiResolution));
+                }
                 params.reloadVoronoi = false;
             }
             // Update shader uniforms
@@ -269,9 +267,13 @@ int main()
             cloudShader.setUniform("PV", pv);
             cloudShader.setUniform("cameraPos", camera.getPosition());
             voronoiTex.bind(0);
+            cloudShader.setUniform("voronoiTex", 0);
+            perlinTex.bind(1);
+            cloudShader.setUniform("perlinTex", 1);
             cube.draw(cloudShader);
             gui.render();
             voronoiTex.unbind();
+            perlinTex.unbind();
             cloudShader.unbind();
         }
 

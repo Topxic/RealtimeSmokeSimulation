@@ -9,23 +9,20 @@ out vec4 fragColor;
 uniform vec3 cloudColor;
 uniform vec3 cameraPos;
 uniform float absorption;
+uniform float border;
 uniform int maxDensitySamples;
 uniform float sampleStepSize;
 uniform float time;
+uniform bool showPerlin;
+uniform bool showVoronoi;
+uniform float showTextureDepth;
 
 uniform sampler3D voronoiTex;
+uniform sampler3D perlinTex;
 
 const vec3 cuboidSize = vec3(1, 1, 1);
-
-#define FK(k) floatBitsToInt(cos(k))^floatBitsToInt(k)
-float hash(float a, float b) {
-    int x = FK(a); int y = FK(b);
-    return float((x * x + y) * (y * y - x) + x) / 2.14e9;
-}
-vec3 hash3(float a) {
-    float h = hash(a, a + 32.23);
-    return vec3(hash(a, h), hash(a + h, h * a), hash(a + h, h));
-}
+const vec3 wind1 = vec3(0.06, 0.0, 0.02);
+const vec3 wind2 = vec3(0.12, 0.0, -0.08);
 
 // Ray-box intersection: get exit position of ray from cuboid
 vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
@@ -37,30 +34,53 @@ vec3 getCuboidExitPos(vec3 origin, vec3 dir, vec3 cuboidSize) {
 }
 
 float sampleVoronoi(vec3 pos) {
-    vec3 uvw = pos + 0.5 + vec3(
-        0.01 * sin(5.5 * time),
-        0.01 * sin(4.5 * time),
-        0.01 * sin(1.5 * time)
-    );
-    return texture(voronoiTex, uvw).r; 
+    vec3 uvw = pos + 0.5;
+    return 1.0 - texture(voronoiTex, uvw).r; 
+}
+
+float samplePerlin(vec3 pos) {
+    vec3 uvw = pos + 0.5;
+    return texture(perlinTex, uvw).r; 
 }
 
 void main() {
     // Compute ray direction from camera to current fragment
     vec3 start = pos;
-    vec3 stop = getCuboidExitPos(cameraPos, normalize(cameraPos - start), cuboidSize);
-    vec3 dir = normalize(stop - start);
+    vec3 dir = normalize(start - cameraPos);
+    vec3 stop = getCuboidExitPos(start + 1e-3 * dir, dir, cuboidSize);
 
     // Sample along the ray
     int numSteps = int(length(stop - start) / sampleStepSize);
+    // Check if start overshot stop
+    if (dot(dir, normalize(stop - start)) < 0.0) {
+        numSteps = 0;
+    }
     float accumulatedDensity = 0.0;
     for (int i = 0; i < numSteps; ++i) {
+
         vec3 samplePos = start + dir * (float(i) * sampleStepSize);
-        float voronoi = 1.0 - sampleVoronoi(samplePos);
-        accumulatedDensity += voronoi * voronoi * sampleStepSize;
+        float voronoi = sampleVoronoi(samplePos + wind1 * time);
+        float perlin  = samplePerlin(samplePos + wind2 * time);
+
+        float density = perlin + voronoi;
+        vec3 borderDistances = 0.5 - abs(samplePos);
+        float minBorder = 2.0 * min(min(borderDistances.x, borderDistances.y), borderDistances.z);
+        minBorder = smoothstep(0.0, border, minBorder);
+
+        accumulatedDensity += minBorder * density * sampleStepSize;
+    }
+    float opacity = 1.0 - exp(-absorption * accumulatedDensity);
+    vec3 color = cloudColor;
+
+    if (showPerlin || showVoronoi) {
+        vec3 pos = start + showTextureDepth * (stop - start);
+        opacity = 1.0;
+        color = vec3(0);
+        if (showVoronoi)
+            color += vec3(sampleVoronoi(pos + wind1 * time));
+        if (showPerlin)
+            color += vec3(samplePerlin(pos + wind1 * time));
     }
 
-    float opacity = 1.0 - exp(-accumulatedDensity * absorption);
-
-    fragColor = vec4(cloudColor, opacity);
+    fragColor = vec4(color, opacity);
 }
