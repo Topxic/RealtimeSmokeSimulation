@@ -6,70 +6,145 @@
 
 namespace geometry
 {
-
-    std::vector<graphics::Mesh::Vertex> createCubeVertices(glm::vec3 gridRes)
+    namespace quad2d
     {
-        float longestSide = glm::max(gridRes.x, glm::max(gridRes.y, gridRes.z));
+        std::vector<graphics::Mesh::Vertex> vertices()
+        {
+            return {
+                {{-1, -1, 0}, {0, 0, -1}, {0, 0}},
+                {{-1, 1, 0}, {0, 0, -1}, {1, 0}},
+                {{1, -1, 0}, {0, 0, -1}, {1, 1}},
+                {{1, 1, 0}, {0, 0, -1}, {0, 1}}};
+        }
 
-        float xExtent = 0.5f * (gridRes.x / longestSide);
-        float yExtent = 0.5f * (gridRes.y / longestSide);
-        float zExtent = 0.5f * (gridRes.z / longestSide);
+        std::vector<unsigned int> indices()
+        {
+            return {2, 1, 0, 1, 2, 3};
+        }
+    } // namespace quad2d
 
-        return {
-            // Front Face
-            {{-xExtent, -yExtent, zExtent}, {0, 0, 1}, {0, 0}},
-            {{xExtent, -yExtent, zExtent}, {0, 0, 1}, {1, 0}},
-            {{xExtent, yExtent, zExtent}, {0, 0, 1}, {1, 1}},
-            {{-xExtent, yExtent, zExtent}, {0, 0, 1}, {0, 1}},
+    namespace box3d
+    {
+        std::vector<graphics::Mesh::Vertex> vertices(glm::vec3 dimensions = {1, 1 , 1})
+        {
+            float longestSide = glm::max(dimensions.x, glm::max(dimensions.y, dimensions.z));
 
-            // Back Face
-            {{xExtent, -yExtent, -zExtent}, {0, 0, -1}, {0, 0}},
-            {{-xExtent, -yExtent, -zExtent}, {0, 0, -1}, {1, 0}},
-            {{-xExtent, yExtent, -zExtent}, {0, 0, -1}, {1, 1}},
-            {{xExtent, yExtent, -zExtent}, {0, 0, -1}, {0, 1}},
+            float xExtent = 0.5f * (dimensions.x / longestSide);
+            float yExtent = 0.5f * (dimensions.y / longestSide);
+            float zExtent = 0.5f * (dimensions.z / longestSide);
 
-            // Left Face
-            {{-xExtent, -yExtent, -zExtent}, {-1, 0, 0}, {0, 0}},
-            {{-xExtent, -yExtent, zExtent}, {-1, 0, 0}, {1, 0}},
-            {{-xExtent, yExtent, zExtent}, {-1, 0, 0}, {1, 1}},
-            {{-xExtent, yExtent, -zExtent}, {-1, 0, 0}, {0, 1}},
+            return {
+                // Front Face
+                {{-xExtent, -yExtent, zExtent}, {0, 0, 1}, {0, 0}},
+                {{xExtent, -yExtent, zExtent}, {0, 0, 1}, {1, 0}},
+                {{xExtent, yExtent, zExtent}, {0, 0, 1}, {1, 1}},
+                {{-xExtent, yExtent, zExtent}, {0, 0, 1}, {0, 1}},
 
-            // Right Face
-            {{xExtent, -yExtent, zExtent}, {1, 0, 0}, {0, 0}},
-            {{xExtent, -yExtent, -zExtent}, {1, 0, 0}, {1, 0}},
-            {{xExtent, yExtent, -zExtent}, {1, 0, 0}, {1, 1}},
-            {{xExtent, yExtent, zExtent}, {1, 0, 0}, {0, 1}},
+                // Back Face
+                {{xExtent, -yExtent, -zExtent}, {0, 0, -1}, {0, 0}},
+                {{-xExtent, -yExtent, -zExtent}, {0, 0, -1}, {1, 0}},
+                {{-xExtent, yExtent, -zExtent}, {0, 0, -1}, {1, 1}},
+                {{xExtent, yExtent, -zExtent}, {0, 0, -1}, {0, 1}},
 
-            // Top Face
-            {{-xExtent, yExtent, -zExtent}, {0, 1, 0}, {0, 0}},
-            {{-xExtent, yExtent, zExtent}, {0, 1, 0}, {0, 1}},
-            {{xExtent, yExtent, zExtent}, {0, 1, 0}, {1, 1}},
-            {{xExtent, yExtent, -zExtent}, {0, 1, 0}, {1, 0}},
+                // Left Face
+                {{-xExtent, -yExtent, -zExtent}, {-1, 0, 0}, {0, 0}},
+                {{-xExtent, -yExtent, zExtent}, {-1, 0, 0}, {1, 0}},
+                {{-xExtent, yExtent, zExtent}, {-1, 0, 0}, {1, 1}},
+                {{-xExtent, yExtent, -zExtent}, {-1, 0, 0}, {0, 1}},
 
-            // Bottom Face
-            {{-xExtent, -yExtent, zExtent}, {0, -1, 0}, {0, 0}},
-            {{-xExtent, -yExtent, -zExtent}, {0, -1, 0}, {0, 1}},
-            {{xExtent, -yExtent, -zExtent}, {0, -1, 0}, {1, 1}},
-            {{xExtent, -yExtent, zExtent}, {0, -1, 0}, {1, 0}},
+                // Right Face
+                {{xExtent, -yExtent, zExtent}, {1, 0, 0}, {0, 0}},
+                {{xExtent, -yExtent, -zExtent}, {1, 0, 0}, {1, 0}},
+                {{xExtent, yExtent, -zExtent}, {1, 0, 0}, {1, 1}},
+                {{xExtent, yExtent, zExtent}, {1, 0, 0}, {0, 1}},
+
+                // Top Face
+                {{-xExtent, yExtent, -zExtent}, {0, 1, 0}, {0, 0}},
+                {{-xExtent, yExtent, zExtent}, {0, 1, 0}, {0, 1}},
+                {{xExtent, yExtent, zExtent}, {0, 1, 0}, {1, 1}},
+                {{xExtent, yExtent, -zExtent}, {0, 1, 0}, {1, 0}},
+
+                // Bottom Face
+                {{-xExtent, -yExtent, zExtent}, {0, -1, 0}, {0, 0}},
+                {{-xExtent, -yExtent, -zExtent}, {0, -1, 0}, {0, 1}},
+                {{xExtent, -yExtent, -zExtent}, {0, -1, 0}, {1, 1}},
+                {{xExtent, -yExtent, zExtent}, {0, -1, 0}, {1, 0}},
+            };
         };
-    };
 
-    std::vector<unsigned int> createCubeIndices()
+        std::vector<unsigned int> indices()
+        {
+            return {
+                // Front Face
+                0, 1, 2, 2, 3, 0,
+                // Back Face
+                4, 5, 6, 6, 7, 4,
+                // Left Face
+                8, 9, 10, 10, 11, 8,
+                // Right Face
+                12, 13, 14, 14, 15, 12,
+                // Top Face
+                16, 17, 18, 18, 19, 16,
+                // Bottom Face
+                20, 21, 22, 22, 23, 20};
+        };
+    } // namespace box3d
+
+    namespace sphere3d
     {
-        return {
-            // Front Face
-            0, 1, 2, 2, 3, 0,
-            // Back Face
-            4, 5, 6, 6, 7, 4,
-            // Left Face
-            8, 9, 10, 10, 11, 8,
-            // Right Face
-            12, 13, 14, 14, 15, 12,
-            // Top Face
-            16, 17, 18, 18, 19, 16,
-            // Bottom Face
-            20, 21, 22, 22, 23, 20};
-    };
+        std::vector<graphics::Mesh::Vertex> vertices(unsigned int stacks = 16, unsigned int slices = 32)
+        {
+            std::vector<graphics::Mesh::Vertex> verts;
+
+            for (unsigned int i = 0; i <= stacks; ++i)
+            {
+                float v = (float)i / stacks;
+                float phi = v * glm::pi<float>(); // 0 -> PI
+
+                for (unsigned int j = 0; j <= slices; ++j)
+                {
+                    float u = (float)j / slices;
+                    float theta = u * glm::two_pi<float>(); // 0 -> 2PI
+
+                    float x = std::sin(phi) * std::cos(theta);
+                    float y = std::cos(phi);
+                    float z = std::sin(phi) * std::sin(theta);
+
+                    glm::vec3 position = {x, y, z};
+                    glm::vec3 normal = glm::normalize(position);
+                    glm::vec2 texCoord = {u, v};
+
+                    verts.push_back({position, normal, texCoord});
+                }
+            }
+
+            return verts;
+        }
+
+        std::vector<unsigned int> indices(unsigned int stacks = 16, unsigned int slices = 32)
+        {
+            std::vector<unsigned int> inds;
+
+            for (unsigned int i = 0; i < stacks; ++i)
+            {
+                for (unsigned int j = 0; j < slices; ++j)
+                {
+                    unsigned int first = i * (slices + 1) + j;
+                    unsigned int second = first + slices + 1;
+
+                    inds.push_back(first);
+                    inds.push_back(second);
+                    inds.push_back(first + 1);
+
+                    inds.push_back(second);
+                    inds.push_back(second + 1);
+                    inds.push_back(first + 1);
+                }
+            }
+
+            return inds;
+        }
+    } // namespace sphere3d
 
 } // namespace geometry
 
