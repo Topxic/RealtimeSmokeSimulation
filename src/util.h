@@ -25,7 +25,7 @@ namespace geometry
 
     namespace box3d
     {
-        std::vector<graphics::Mesh::Vertex> vertices(glm::vec3 dimensions = {1, 1 , 1})
+        std::vector<graphics::Mesh::Vertex> vertices(glm::vec3 dimensions = {1, 1, 1})
         {
             float longestSide = glm::max(dimensions.x, glm::max(dimensions.y, dimensions.z));
 
@@ -221,7 +221,7 @@ namespace perlin
         return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
     }
 
-    inline float perlinNoise(const glm::vec3 &position, uint32_t seed)
+    inline float noisePerlin(const glm::vec3 &position, uint32_t seed)
     {
         glm::vec3 floorPos = glm::floor(position);
         glm::vec3 fractPos = position - floorPos;
@@ -241,14 +241,42 @@ namespace perlin
         return interpolate(v1, v2, v3, v4, v5, v6, v7, v8, fade(fractPos));
     }
 
-    inline std::vector<glm::vec4> perlinNoise(
-        glm::ivec3 resolution,
+    inline float noisePerlin(
+        glm::vec3 position,
         int octaveCount,
         float persistence,
         float lacunarity,
         float amplitude,
         float scale,
         uint32_t seed)
+    {
+        float m_amplitude = amplitude;
+        // Normalize
+        position /= scale;
+        float value = 0.0f;
+
+        for (int i = 0; i < octaveCount; i++)
+        {
+            uint32_t s = hash((uint32_t)i, seed);
+
+            value += noisePerlin(position, s) * m_amplitude;
+
+            m_amplitude *= persistence;
+            position *= lacunarity;
+        }
+
+        return value;
+    }
+
+    inline std::vector<glm::vec4> noiseFBM(
+        glm::ivec3 resolution,
+        int octaveCount,
+        float persistence,
+        float lacunarity,
+        float amplitude,
+        float scale,
+        uint32_t seed,
+        const float period = 1.0)
     {
         const int gridSize = resolution.x * resolution.y * resolution.z;
         std::vector<glm::vec4> values(gridSize);
@@ -258,24 +286,15 @@ namespace perlin
             {
                 for (int z = 0; z < resolution.z; ++z)
                 {
-
-                    float m_amplitude = amplitude;
-                    glm::vec3 position = {x, y, z};
-                    // Normalize
-                    position /= scale;
-                    float value = 0.0f;
-
-                    for (int i = 0; i < octaveCount; i++)
-                    {
-                        uint32_t s = hash((uint32_t)i, seed);
-
-                        value += perlinNoise(position, s) * m_amplitude;
-
-                        m_amplitude *= persistence;
-                        position *= lacunarity;
-                    }
-
-                    values[z * resolution.x * resolution.y + y * resolution.x + x] = glm::vec4(value);
+                    glm::vec3 pos = {x, y, z};
+                    pos /= resolution;
+                    pos = glm::mod(pos, period);
+                    float fbm = 0.0f;
+                    fbm += 0.5f * noisePerlin(pos, octaveCount, persistence, lacunarity, amplitude, scale * 10.0f, seed);
+                    fbm += 0.25f * noisePerlin(pos, octaveCount, persistence, lacunarity, amplitude, scale * 20.0f, seed);
+                    fbm += 0.125f * noisePerlin(pos, octaveCount, persistence, lacunarity, amplitude, scale * 40.0f, seed);
+                    fbm += 0.0625f * noisePerlin(pos, octaveCount, persistence, lacunarity, amplitude, scale * 80.0f, seed);
+                    values[z * resolution.x * resolution.y + y * resolution.x + x] = glm::vec4(fbm);
                 }
             }
         }
@@ -292,9 +311,9 @@ namespace voronoi
         return (float)(rand()) / (float)(RAND_MAX);
     }
 
-    static std::vector<glm::vec4> createVoronoiNoise(const glm::ivec3 resolution, const glm::ivec3 gridRes)
+    static std::vector<glm::vec4> createVoronoiNoise(const glm::ivec3 resolution, const glm::ivec3 gridRes, const float period = 1.0)
     {
-        // Create voronoi texture
+        // Grid contains the center points
         const int gridSize = gridRes.x * gridRes.y * gridRes.z;
         const int texSize = resolution.x * resolution.y * resolution.z;
         auto samples = std::vector<glm::vec3>(gridSize);
@@ -308,6 +327,8 @@ namespace voronoi
         }
 
         const glm::vec3 cellSize = glm::vec3(resolution) / glm::vec3(gridRes);
+        const glm::vec3 tileSize = glm::vec3(resolution) * period;
+
         for (int x = 0; x < resolution.x; ++x)
         {
             for (int y = 0; y < resolution.y; ++y)
@@ -333,7 +354,7 @@ namespace voronoi
                                 if (idx >= 0 && idx < gridSize)
                                 {
                                     glm::vec3 sample = (cellIdx + samples[idx]) * cellSize;
-                                    glm::vec3 diff = pixel - sample;
+                                    glm::vec3 diff = glm::mod(pixel, tileSize) - glm::mod(sample, tileSize);
                                     float dist = glm::length(diff);
                                     minDistance = glm::min(minDistance, dist);
                                 }
@@ -349,11 +370,11 @@ namespace voronoi
         return voronoiNoise;
     }
 
-    inline std::vector<glm::vec4> composedVoronoiNoise(const glm::ivec3 voronoiResolution, const float c1, const float c2, const float c3)
+    inline std::vector<glm::vec4> composedVoronoiNoise(const glm::ivec3 voronoiResolution, const float c1, const float c2, const float c3, const float period = 1.0)
     {
-        auto voronoi4Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(4));
-        auto voronoi8Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(8));
-        auto voronoi16Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(16));
+        auto voronoi4Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(4), period);
+        auto voronoi8Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(8), period);
+        auto voronoi16Noise = createVoronoiNoise(voronoiResolution, glm::ivec3(16), period);
         auto voronoiNoise = std::vector<glm::vec4>(voronoiResolution.x * voronoiResolution.y * voronoiResolution.z);
         for (int i = 0; i < voronoiNoise.size(); ++i)
         {

@@ -2,6 +2,7 @@
 
 #include <tinylogger/tinylogger.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/random.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
@@ -19,39 +20,41 @@
 #include "../util.h"
 
 #ifdef _WIN32
-    #define ASSETS_PATH_RELATIVE "../../assets"
+#define ASSETS_PATH_RELATIVE "../../assets"
 #else
-    #define ASSETS_PATH_RELATIVE "../assets"
+#define ASSETS_PATH_RELATIVE "../assets"
 #endif
 
-
-struct CloudParams {
+struct CloudParams
+{
     glm::vec3 cloudColor = {1, 1, 1};
-    float absorption = 10.0f;
+    float absorption = 70.0f;
     float sampleStepSize = 0.04f;
     float time;
-    float border = 0.08;
+    float border = 0.07;
 
     // Noise calculation
+    float period = 0.5;
     glm::ivec3 voronoiResolution = {32, 32, 32};
-    float c1 = 0.625f;
-    float c2 = 0.25f;
-    float c3 = 0.125f;
-    glm::ivec3 perlinResolution = {32, 32, 32};
-    float amplitude = 1.0; 
-    int octaveCount = 5; 
-    float persistence = 0.5; 
-    float lacunarity = 2.0;  
-    float scale = 4.0;  
+    float c1 = 0.566;
+    float c2 = 0.913;
+    float c3 = 0.986;
+    glm::ivec3 fbmResolution = {32, 32, 32};
+    float amplitude = 1.0;
+    int octaveCount = 5;
+    float persistence = 0.5;
+    float lacunarity = 2.0;
+    float scale = 4.0;
     int seed = 2309461;
 
     // Lightning
-    float henyeyGreenstein = 0.9;
-    float lightIntensity = 1.0;
+    float henyeyGreen_G = 0.9;
+    float henyeyGreen_K = 0.8;
+    float lightIntensity = 40.0;
     glm::vec3 lightPosition = {8.0, 8.0, 0.0};
     glm::vec3 lightColor = {0.9, 0.9, 0.5};
-    float exposure = 2.2;
-    float gamma = 1.0;
+    float exposure = 1.0;
+    float gamma = 2.2;
 
     // Debug utility
     bool reloadVoronoi;
@@ -118,39 +121,66 @@ static inline float getAspectRatio()
     return static_cast<float>(m_viewport[2]) / static_cast<float>(m_viewport[3]);
 }
 
-static void buildGUI(CloudParams &params, float dt) 
+static void buildGUI(CloudParams &params, float dt)
 {
     static bool show = false;
 
     ImGui::NewFrame();
     ImGui::Begin("Smoke Parameters", &show);
     ImGui::Text("FPS: %.1f", 1 / dt);
-    ImGui::SliderFloat3("Cloud Color", &params.cloudColor[0], 0, 1);
-    ImGui::SliderFloat("Absorption", &params.absorption, 0.0f, 50.0f);
+    ImGui::ColorPicker3("Cloud Color", &params.cloudColor[0]);
+    ImGui::SliderFloat("Absorption", &params.absorption, 0.0f, 300.0f);
     ImGui::SliderFloat("Border", &params.border, 0.0f, 1.0f);
     ImGui::SliderFloat("Sample Step Size", &params.sampleStepSize, 0.001f, 0.1f);
-    ImGui::SliderFloat("Light intensity", &params.lightIntensity, 0.0f, 10.0f);
+    ImGui::SliderFloat("Light intensity", &params.lightIntensity, 0.0f, 1000.0f);
 
     static bool animateLight;
     ImGui::Checkbox("Animate light", &animateLight);
-    if (animateLight) {
-        params.lightPosition.x = 8.0f * glm::sin(0.5f * params.time);
-        params.lightPosition.z = 0.0f;
-        params.lightPosition.y = -4.0f + 8.0f * glm::cos(0.5f * params.time);
+
+    if (animateLight)
+    {
+        static float theta = 0.0f;                // azimuthal angle
+        static float phi = glm::half_pi<float>(); // polar angle, start at equator
+
+        // Drift parameters
+        static float driftSpeed = 0.2f;                                            // radians per second
+        static float driftTarget = glm::linearRand(0.1f, glm::pi<float>() - 0.1f); // avoid exact poles
+
+        // Update azimuth (always rotates around Y)
+        theta += 0.5f * dt; // circular motion speed
+
+        // Smoothly drift polar angle toward target
+        phi = glm::mix(phi, driftTarget, 0.01f);
+
+        // Occasionally pick a new drift target
+        static float timer = 0.0f;
+        timer += dt;
+        if (timer > 5.0f)
+        { // new target every 5 seconds
+            timer = 0.0f;
+            driftTarget = glm::linearRand(0.1f, glm::pi<float>() - 0.1f);
+        }
+
+        float radius = 8.0f;
+        params.lightPosition = glm::vec3(
+            radius * glm::sin(phi) * glm::cos(theta),
+            radius * glm::cos(phi),
+            radius * glm::sin(phi) * glm::sin(theta));
     }
-    
+
     ImGui::SliderFloat3("Light position", &params.lightPosition[0], -10.0f, 10.0f);
-    ImGui::SliderFloat3("Light color", &params.lightColor[0], 0.0f, 1.0f);
+    ImGui::ColorPicker3("Light color", &params.lightColor[0]);
     ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
     ImGui::SliderFloat("Gamma", &params.gamma, 0.0f, 10.0f);
-    
+
+    ImGui::SliderFloat("Noise period", &params.period, 0.0f, 1.0f);
     ImGui::InputInt3("Voronoi texture resolution", &params.voronoiResolution[0]);
     ImGui::SliderFloat("Voronoi c1", &params.c1, 0.0f, 1.0f);
     ImGui::SliderFloat("Voronoi c2", &params.c2, 0.0f, 1.0f);
     ImGui::SliderFloat("Voronoi c3", &params.c3, 0.0f, 1.0f);
     params.reloadVoronoi = ImGui::Button("Update voronoi texture");
 
-    ImGui::InputInt3("Perlin texture resolution", &params.perlinResolution[0]);
+    ImGui::InputInt3("FBM texture resolution", &params.fbmResolution[0]);
     ImGui::InputInt("Perlin octave count", &params.octaveCount);
     ImGui::InputFloat("Perlin persistence", &params.persistence);
     ImGui::InputFloat("Perlin lacunarity", &params.lacunarity);
@@ -158,8 +188,9 @@ static void buildGUI(CloudParams &params, float dt)
     ImGui::InputFloat("Perlin scale", &params.scale);
     ImGui::InputInt("Perlin seed", &params.seed);
     params.reloadPerlin = ImGui::Button("Update perlin texture");
-    
-    ImGui::SliderFloat("Henyey-Greenstein factor", &params.henyeyGreenstein, -1.0f, 1.0f);
+
+    ImGui::SliderFloat("Henyey-Greenstein G", &params.henyeyGreen_G, -1.0f, 1.0f);
+    ImGui::SliderFloat("Henyey-Greenstein K", &params.henyeyGreen_K, 0.0f, 1.0f);
 
     ImGui::Checkbox("Show voronoi", &params.showVoronoi);
     ImGui::Checkbox("Show perlin", &params.showPerlin);
@@ -174,7 +205,7 @@ static void setUniforms(graphics::Shader &shader, CloudParams &params, float dt)
     shader.setUniform("cloudColor", params.cloudColor);
     shader.setUniform("absorption", params.absorption);
     shader.setUniform("sampleStepSize", params.sampleStepSize);
-    
+
     shader.setUniform("time", params.time);
     shader.setUniform("dt", dt);
     shader.setUniform("border", params.border);
@@ -186,7 +217,8 @@ static void setUniforms(graphics::Shader &shader, CloudParams &params, float dt)
     shader.setUniform("lightIntensity", params.lightIntensity);
     shader.setUniform("lightPosition", params.lightPosition);
     shader.setUniform("lightColor", params.lightColor);
-    shader.setUniform("henyeyGreenstein_g", params.henyeyGreenstein);
+    shader.setUniform("henyeyGreen_G", params.henyeyGreen_G);
+    shader.setUniform("henyeyGreen_K", params.henyeyGreen_K);
     shader.setUniform("gamma", params.gamma);
     shader.setUniform("exposure", params.exposure);
 }
@@ -210,8 +242,7 @@ int main()
     auto aspectRatio = getAspectRatio();
     auto camera = controls::Camera(
         glm::vec3(1, 0.5, 1),
-        glm::vec3(0, 0, 0)
-    );
+        glm::vec3(0, 0, 0));
     auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
     auto controls = controls::OrbitalControls(0.005f, 0.1f);
     bool focused = true;
@@ -227,10 +258,10 @@ int main()
     auto lightShader = graphics::Shader(std::vector<std::string>({cloudShaderPath + "/sphere.vert", cloudShaderPath + "/light.frag"}));
 
     // Create noise textures
-    auto voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3);
+    auto voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3, params.period);
     auto voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
-    auto perlinNoise = perlin::perlinNoise(params.perlinResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed);
-    auto perlinTex = graphics::Texture3D(perlinNoise, params.voronoiResolution);
+    auto fbmNoise = perlin::noiseFBM(params.fbmResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed, params.period);
+    auto fbmTex = graphics::Texture3D(fbmNoise, params.fbmResolution);
 
     auto currTime = std::chrono::steady_clock::now();
     auto prevTime = currTime;
@@ -262,9 +293,12 @@ int main()
             }
             if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_F1))
             {
-                if (focused) {
+                if (focused)
+                {
                     window.showMouse();
-                } else {
+                }
+                else
+                {
                     window.hideMouse();
                 }
                 controls::Keyboard::getInstance().setKeyState(GLFW_KEY_F1, false);
@@ -276,20 +310,28 @@ int main()
         }
 
         { // Update
-            if (params.reloadPerlin) {
-                perlinNoise = perlin::perlinNoise(params.perlinResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed);
-                if (glm::any(glm::lessThan(perlinTex.resolution, params.perlinResolution))) {
-                    perlinTex = graphics::Texture3D(perlinNoise, params.voronoiResolution);
-                } else {
-                    perlinTex.update(perlinNoise, glm::ivec3(0), glm::ivec3(params.perlinResolution));
+            if (params.reloadPerlin)
+            {
+                fbmNoise = perlin::noiseFBM(params.fbmResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed, params.period);
+                if (glm::any(glm::lessThan(fbmTex.resolution, params.fbmResolution)))
+                {
+                    fbmTex = graphics::Texture3D(fbmNoise, params.fbmResolution);
+                }
+                else
+                {
+                    fbmTex.update(fbmNoise, glm::ivec3(0), glm::ivec3(params.fbmResolution));
                 }
                 params.reloadPerlin = false;
             }
-            if (params.reloadVoronoi) {
-                voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3);
-                if (glm::any(glm::lessThan(voronoiTex.resolution, params.voronoiResolution))) {
+            if (params.reloadVoronoi)
+            {
+                voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3, params.period);
+                if (glm::any(glm::lessThan(voronoiTex.resolution, params.voronoiResolution)))
+                {
                     voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
-                } else {
+                }
+                else
+                {
                     voronoiTex.update(voronoiNoise, glm::ivec3(0), glm::ivec3(params.voronoiResolution));
                 }
                 params.reloadVoronoi = false;
@@ -297,7 +339,6 @@ int main()
         }
 
         { // Render
-            
 
             // Render light source
             lightShader.bind();
@@ -309,18 +350,18 @@ int main()
             // Render cloud
             cloudShader.bind();
             voronoiTex.bind(0);
-            perlinTex.bind(1);
+            fbmTex.bind(1);
 
             cloudShader.setUniform("PV", pv);
             cloudShader.setUniform("cameraPos", camera.getPosition());
             cloudShader.setUniform("cameraFoV", camera.getFov());
             cloudShader.setUniform("voronoiTex", 0);
-            cloudShader.setUniform("perlinTex", 1);
+            cloudShader.setUniform("fbmTex", 1);
             setUniforms(cloudShader, params, dt);
             cubeMesh.draw(cloudShader);
 
             voronoiTex.unbind();
-            perlinTex.unbind();
+            fbmTex.unbind();
             cloudShader.unbind();
 
             // Render GUI
