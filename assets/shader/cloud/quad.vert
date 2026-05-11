@@ -6,14 +6,11 @@ layout (location = 2) in vec2 inTC;
 
 out vec3 pos;
 out vec3 norm;
-out vec2 uv;
-
-
-uniform mat4 PV;
+out vec2 tc;
 
 void main() {
     pos = inPos;
     norm = inNorm;
-    uv = inTC;
-    gl_Position = PV * vec4(inPos, 1);
+    tc = inTC;
+    gl_Position = vec4(inPos, 1);
 }

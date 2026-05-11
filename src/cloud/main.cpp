@@ -1,11 +1,6 @@
 #include <filesystem>
 
-#include <tinylogger/tinylogger.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/random.hpp>
-#include <imgui.h>
-#include <imgui_impl_opengl3.h>
-#include <imgui_impl_glfw.h>
+#include <gl/glew.h>
 
 #include "graphics/window.h"
 #include "graphics/mesh.h"
@@ -19,50 +14,14 @@
 
 #include "../util.h"
 
+#include <imgui.h>
+#include <glm/gtc/random.hpp>
+
 #ifdef _WIN32
 #define ASSETS_PATH_RELATIVE "../../assets"
 #else
 #define ASSETS_PATH_RELATIVE "../assets"
 #endif
-
-struct CloudParams
-{
-    glm::vec3 cloudColor = {1, 1, 1};
-    float absorption = 70.0f;
-    float sampleStepSize = 0.04f;
-    float time;
-    float border = 0.07;
-
-    // Noise calculation
-    float period = 0.5;
-    glm::ivec3 voronoiResolution = {32, 32, 32};
-    float c1 = 0.566;
-    float c2 = 0.913;
-    float c3 = 0.986;
-    glm::ivec3 fbmResolution = {32, 32, 32};
-    float amplitude = 1.0;
-    int octaveCount = 5;
-    float persistence = 0.5;
-    float lacunarity = 2.0;
-    float scale = 4.0;
-    int seed = 2309461;
-
-    // Lightning
-    float henyeyGreen_G = 0.9;
-    float henyeyGreen_K = 0.8;
-    float lightIntensity = 40.0;
-    glm::vec3 lightPosition = {8.0, 8.0, 0.0};
-    glm::vec3 lightColor = {0.9, 0.9, 0.5};
-    float exposure = 1.0;
-    float gamma = 2.2;
-
-    // Debug utility
-    bool reloadVoronoi;
-    bool reloadPerlin;
-    bool showPerlin;
-    bool showVoronoi;
-    float showTextureDepth;
-};
 
 static void initGLEW()
 {
@@ -100,20 +59,6 @@ static void initGLEW()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-static void initGLFW(graphics::Window &window, const CloudParams &params)
-{
-    if (!window.init("cloud", 1920, 1080))
-    {
-        exit(EXIT_FAILURE);
-    }
-    glfwMakeContextCurrent(window.getGLFWWindow());
-    // Init user input
-    glfwSetKeyCallback(window.getGLFWWindow(), controls::onKeyChange);
-    glfwSetMouseButtonCallback(window.getGLFWWindow(), controls::onMouseChange);
-    glfwSetCursorPosCallback(window.getGLFWWindow(), controls::onMouseMove);
-    glfwSetScrollCallback(window.getGLFWWindow(), controls::onMouseScroll);
-}
-
 static inline float getAspectRatio()
 {
     GLint m_viewport[4];
@@ -121,106 +66,39 @@ static inline float getAspectRatio()
     return static_cast<float>(m_viewport[2]) / static_cast<float>(m_viewport[3]);
 }
 
-static void buildGUI(CloudParams &params, float dt)
+static void buildGUI(float dt, controls::PropertySystem &properties)
 {
-    static bool show = false;
-
     ImGui::NewFrame();
-    ImGui::Begin("Smoke Parameters", &show);
-    ImGui::Text("FPS: %.1f", 1 / dt);
-    ImGui::ColorPicker3("Cloud Color", &params.cloudColor[0]);
-    ImGui::SliderFloat("Absorption", &params.absorption, 0.0f, 300.0f);
-    ImGui::SliderFloat("Border", &params.border, 0.0f, 1.0f);
-    ImGui::SliderFloat("Sample Step Size", &params.sampleStepSize, 0.001f, 0.1f);
-    ImGui::SliderFloat("Light intensity", &params.lightIntensity, 0.0f, 1000.0f);
 
-    static bool animateLight;
-    ImGui::Checkbox("Animate light", &animateLight);
+    float fps = (dt > 0.0f) ? (1.0f / dt) : 0.0f;
+    static float fps_history[120] = { 0 };
+    static int fps_index = 0;
+    fps_history[fps_index] = fps;
+    fps_index = (fps_index + 1) % IM_ARRAYSIZE(fps_history);
 
-    if (animateLight)
-    {
-        static float theta = 0.0f;                // azimuthal angle
-        static float phi = glm::half_pi<float>(); // polar angle, start at equator
-
-        // Drift parameters
-        static float driftSpeed = 0.2f;                                            // radians per second
-        static float driftTarget = glm::linearRand(0.1f, glm::pi<float>() - 0.1f); // avoid exact poles
-
-        // Update azimuth (always rotates around Y)
-        theta += 0.5f * dt; // circular motion speed
-
-        // Smoothly drift polar angle toward target
-        phi = glm::mix(phi, driftTarget, 0.01f);
-
-        // Occasionally pick a new drift target
-        static float timer = 0.0f;
-        timer += dt;
-        if (timer > 5.0f)
-        { // new target every 5 seconds
-            timer = 0.0f;
-            driftTarget = glm::linearRand(0.1f, glm::pi<float>() - 0.1f);
-        }
-
-        float radius = 8.0f;
-        params.lightPosition = glm::vec3(
-            radius * glm::sin(phi) * glm::cos(theta),
-            radius * glm::cos(phi),
-            radius * glm::sin(phi) * glm::sin(theta));
-    }
-
-    ImGui::SliderFloat3("Light position", &params.lightPosition[0], -10.0f, 10.0f);
-    ImGui::ColorPicker3("Light color", &params.lightColor[0]);
-    ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
-    ImGui::SliderFloat("Gamma", &params.gamma, 0.0f, 10.0f);
-
-    ImGui::SliderFloat("Noise period", &params.period, 0.0f, 1.0f);
-    ImGui::InputInt3("Voronoi texture resolution", &params.voronoiResolution[0]);
-    ImGui::SliderFloat("Voronoi c1", &params.c1, 0.0f, 1.0f);
-    ImGui::SliderFloat("Voronoi c2", &params.c2, 0.0f, 1.0f);
-    ImGui::SliderFloat("Voronoi c3", &params.c3, 0.0f, 1.0f);
-    params.reloadVoronoi = ImGui::Button("Update voronoi texture");
-
-    ImGui::InputInt3("FBM texture resolution", &params.fbmResolution[0]);
-    ImGui::InputInt("Perlin octave count", &params.octaveCount);
-    ImGui::InputFloat("Perlin persistence", &params.persistence);
-    ImGui::InputFloat("Perlin lacunarity", &params.lacunarity);
-    ImGui::InputFloat("Perlin amplitude", &params.amplitude);
-    ImGui::InputFloat("Perlin scale", &params.scale);
-    ImGui::InputInt("Perlin seed", &params.seed);
-    params.reloadPerlin = ImGui::Button("Update perlin texture");
-
-    ImGui::SliderFloat("Henyey-Greenstein G", &params.henyeyGreen_G, -1.0f, 1.0f);
-    ImGui::SliderFloat("Henyey-Greenstein K", &params.henyeyGreen_K, 0.0f, 1.0f);
-
-    ImGui::Checkbox("Show voronoi", &params.showVoronoi);
-    ImGui::Checkbox("Show perlin", &params.showPerlin);
-    ImGui::SliderFloat("Texture depth", &params.showTextureDepth, 0.0f, 1.0f);
+    ImGui::Begin("Performance");
+    ImGui::Text("FPS: %.1f", fps);
+    ImGui::NewLine();
+    ImGui::PlotLines(
+        "FPS Graph",
+        fps_history,
+        IM_ARRAYSIZE(fps_history),
+        fps_index,
+        nullptr,
+        0.0f,
+        144.0f,
+        ImVec2(0, 80)
+    );
     ImGui::End();
+
+    properties.buildGUI();
+
+    ImGui::EndFrame();
 }
 
-static void setUniforms(graphics::Shader &shader, CloudParams &params, float dt)
+static void setUniforms(graphics::Shader &shader, float dt)
 {
-    params.time += dt;
-
-    shader.setUniform("cloudColor", params.cloudColor);
-    shader.setUniform("absorption", params.absorption);
-    shader.setUniform("sampleStepSize", params.sampleStepSize);
-
-    shader.setUniform("time", params.time);
     shader.setUniform("dt", dt);
-    shader.setUniform("border", params.border);
-
-    shader.setUniform("showPerlin", params.showPerlin);
-    shader.setUniform("showVoronoi", params.showVoronoi);
-    shader.setUniform("showTextureDepth", params.showTextureDepth);
-
-    shader.setUniform("lightIntensity", params.lightIntensity);
-    shader.setUniform("lightPosition", params.lightPosition);
-    shader.setUniform("lightColor", params.lightColor);
-    shader.setUniform("henyeyGreen_G", params.henyeyGreen_G);
-    shader.setUniform("henyeyGreen_K", params.henyeyGreen_K);
-    shader.setUniform("gamma", params.gamma);
-    shader.setUniform("exposure", params.exposure);
 }
 
 int main()
@@ -229,10 +107,10 @@ int main()
     tlog::info() << "Current working directory: " << std::filesystem::current_path();
     tlog::info() << "Assets directory: " << ASSETS_PATH_RELATIVE;
 
-    auto params = CloudParams();
+    auto propertiews = controls::PropertySystem(std::string(ASSETS_PATH_RELATIVE) + "/config/cloudProperties.json");
 
-    graphics::Window window;
-    initGLFW(window, params);
+    graphics::Window window("Cloud", 1920, 1080);
+    glfwMakeContextCurrent(window.getGLFWWindow());
     initGLEW();
 
     // Init ImGUI
@@ -240,32 +118,52 @@ int main()
 
     // Init camera and controls
     auto aspectRatio = getAspectRatio();
-    auto camera = controls::Camera(
-        glm::vec3(1, 0.5, 1),
+    auto camera = controls::PerspectiveCamera(
+        glm::vec3(2.0, 2.0, 2.0),
         glm::vec3(0, 0, 0));
-    auto pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
-    auto controls = controls::OrbitalControls(0.005f, 0.1f);
+    auto orbitControls = std::make_unique<controls::OrbitalControls>(0.005f, 0.1f, window.getContext(), glm::vec3(0.0, 0.0, 0.0));
+    auto freeControls = std::make_unique<controls::FreeControls>(0.005f, 0.01f, window.getContext());
+    controls::Controls *activeControls = orbitControls.get();
+
     bool focused = true;
     window.hideMouse();
+    controls::Keyboard &keyboard = *window.getContext().keyboard;
+    controls::Mouse &mouse = *window.getContext().mouse;
 
     // Initalize the cube mesh
-    auto cubeMesh = graphics::Mesh(geometry::box3d::vertices(), geometry::box3d::indices());
-    auto lightMesh = graphics::Mesh(geometry::sphere3d::vertices(), geometry::sphere3d::indices());
+    auto quad2DMesh = graphics::Mesh(geometry::quad2d::vertices(), geometry::quad2d::indices());
 
     // Compile shaders
     const std::string cloudShaderPath = std::string(ASSETS_PATH_RELATIVE) + "/shader/cloud";
-    auto cloudShader = graphics::Shader(std::vector<std::string>({cloudShaderPath + "/cube.vert", cloudShaderPath + "/cloud.frag"}));
-    auto lightShader = graphics::Shader(std::vector<std::string>({cloudShaderPath + "/sphere.vert", cloudShaderPath + "/light.frag"}));
+    auto cloudShader = graphics::Shader(std::vector<std::string>({cloudShaderPath + "/quad.vert", cloudShaderPath + "/quad.frag"}));
 
     // Create noise textures
-    auto voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3, params.period);
-    auto voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
-    auto fbmNoise = perlin::noiseFBM(params.fbmResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed, params.period);
-    auto fbmTex = graphics::Texture3D(fbmNoise, params.fbmResolution);
+    auto voronoiNoise = voronoi::composedVoronoiNoise(
+        propertiews.getValue<glm::ivec3>("voronoiResolution"),
+        propertiews.getValue<float>("c1"),
+        propertiews.getValue<float>("c2"),
+        propertiews.getValue<float>("c3"),
+        propertiews.getValue<float>("period"));
+    auto voronoiTex = graphics::Texture3D(
+        voronoiNoise,
+        propertiews.getValue<glm::ivec3>("voronoiResolution"));
+
+    auto fbmNoise = perlin::noiseFBM(
+        propertiews.getValue<glm::ivec3>("fbmResolution"),
+        propertiews.getValue<int>("octaveCount"),
+        propertiews.getValue<float>("persistence"),
+        propertiews.getValue<float>("lacunarity"),
+        propertiews.getValue<float>("amplitude"),
+        propertiews.getValue<float>("scale"),
+        propertiews.getValue<int>("seed"),
+        propertiews.getValue<float>("period"));
+    auto fbmTex = graphics::Texture3D(
+        fbmNoise,
+        propertiews.getValue<glm::ivec3>("fbmResolution"));
 
     auto currTime = std::chrono::steady_clock::now();
     auto prevTime = currTime;
-    while (!glfwWindowShouldClose(window.getGLFWWindow()) && !controls::Keyboard::getInstance().isPressed(GLFW_KEY_ESCAPE))
+    while (!glfwWindowShouldClose(window.getGLFWWindow()))
     {
         // Calculate delta time between frames
         currTime = std::chrono::steady_clock::now();
@@ -273,7 +171,13 @@ int main()
         prevTime = currTime;
 
         // Poll keyboard and mouse events
+        mouse.beginFrame();
+        keyboard.beginFrame();
         glfwPollEvents();
+        if (keyboard.down(GLFW_KEY_ESCAPE))
+        {
+            break;
+        }
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         { // Update IO
@@ -281,17 +185,14 @@ int main()
             // Update camera
             aspectRatio = getAspectRatio();
             if (focused)
-                controls.update(camera, dt);
-            pv = camera.getProjectionMatrix(aspectRatio) * camera.getViewMatrix();
+                activeControls->update(camera, dt);
 
             // Reload shader
-            if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_R))
+            if (keyboard.pressed(GLFW_KEY_R))
             {
                 cloudShader.reload();
-                lightShader.reload();
-                controls::Keyboard::getInstance().setKeyState(GLFW_KEY_R, false);
             }
-            if (controls::Keyboard::getInstance().isPressed(GLFW_KEY_F1))
+            if (keyboard.pressed(GLFW_KEY_F1))
             {
                 if (focused)
                 {
@@ -301,64 +202,83 @@ int main()
                 {
                     window.hideMouse();
                 }
-                controls::Keyboard::getInstance().setKeyState(GLFW_KEY_F1, false);
                 focused = !focused;
             }
-
-            gui.preBuild();
-            buildGUI(params, dt);
+            if (keyboard.pressed(GLFW_KEY_F2))
+            {
+                if (activeControls == orbitControls.get())
+                {
+                    activeControls = freeControls.get();
+                }
+                else
+                {
+                    activeControls = orbitControls.get();
+                }
+            }
         }
 
         { // Update
-            if (params.reloadPerlin)
+            gui.preBuild();
+            buildGUI(dt, propertiews);
+
+            if (propertiews.getValue<bool>("reloadFBM"))
             {
-                fbmNoise = perlin::noiseFBM(params.fbmResolution, params.octaveCount, params.persistence, params.lacunarity, params.amplitude, params.scale, params.seed, params.period);
-                if (glm::any(glm::lessThan(fbmTex.resolution, params.fbmResolution)))
+                auto fbmResolution = propertiews.getValue<glm::ivec3>("fbmResolution");
+                fbmNoise = perlin::noiseFBM(
+                    fbmResolution,
+                    propertiews.getValue<int>("octaveCount"),
+                    propertiews.getValue<float>("persistence"),
+                    propertiews.getValue<float>("lacunarity"),
+                    propertiews.getValue<float>("amplitude"),
+                    propertiews.getValue<float>("scale"),
+                    propertiews.getValue<int>("seed"),
+                    propertiews.getValue<float>("period"));
+                if (glm::any(glm::lessThan(fbmTex.resolution, fbmResolution)))
                 {
-                    fbmTex = graphics::Texture3D(fbmNoise, params.fbmResolution);
+                    fbmTex = graphics::Texture3D(fbmNoise, fbmResolution);
                 }
                 else
                 {
-                    fbmTex.update(fbmNoise, glm::ivec3(0), glm::ivec3(params.fbmResolution));
+                    fbmTex.update(fbmNoise, glm::ivec3(0), fbmResolution);
                 }
-                params.reloadPerlin = false;
+                propertiews.setValue<bool>("reloadFBM", false);
             }
-            if (params.reloadVoronoi)
+
+            if (propertiews.getValue<bool>("reloadVoronoi"))
             {
-                voronoiNoise = voronoi::composedVoronoiNoise(params.voronoiResolution, params.c1, params.c2, params.c3, params.period);
-                if (glm::any(glm::lessThan(voronoiTex.resolution, params.voronoiResolution)))
+                auto voronoiResolution = propertiews.getValue<glm::ivec3>("voronoiResolution");
+                voronoiNoise = voronoiNoise = voronoi::composedVoronoiNoise(
+                    voronoiResolution,
+                    propertiews.getValue<float>("c1"),
+                    propertiews.getValue<float>("c2"),
+                    propertiews.getValue<float>("c3"),
+                    propertiews.getValue<float>("period"));
+                if (glm::any(glm::lessThan(voronoiTex.resolution, voronoiResolution)))
                 {
-                    voronoiTex = graphics::Texture3D(voronoiNoise, params.voronoiResolution);
+                    voronoiTex = graphics::Texture3D(voronoiNoise, voronoiResolution);
                 }
                 else
                 {
-                    voronoiTex.update(voronoiNoise, glm::ivec3(0), glm::ivec3(params.voronoiResolution));
+                    voronoiTex.update(voronoiNoise, glm::ivec3(0), voronoiResolution);
                 }
-                params.reloadVoronoi = false;
+                propertiews.setValue<bool>("reloadVoronoi", false);
             }
         }
 
         { // Render
-
-            // Render light source
-            lightShader.bind();
-            lightShader.setUniform("PV", pv);
-            setUniforms(lightShader, params, dt);
-            lightMesh.draw(lightShader);
-            lightShader.unbind();
-
             // Render cloud
             cloudShader.bind();
             voronoiTex.bind(0);
             fbmTex.bind(1);
 
-            cloudShader.setUniform("PV", pv);
-            cloudShader.setUniform("cameraPos", camera.getPosition());
-            cloudShader.setUniform("cameraFoV", camera.getFov());
+            cloudShader.setUniform("cameraEye", camera.getEye());
+            cloudShader.setUniform("cameraCenter", camera.getCenter());
+            cloudShader.setUniform("cameraUp", camera.getUp());
+            cloudShader.setUniform("fovRad", glm::radians(camera.getFov()));
+            cloudShader.setUniform("aspect", getAspectRatio());
             cloudShader.setUniform("voronoiTex", 0);
             cloudShader.setUniform("fbmTex", 1);
-            setUniforms(cloudShader, params, dt);
-            cubeMesh.draw(cloudShader);
+            quad2DMesh.draw(cloudShader);
 
             voronoiTex.unbind();
             fbmTex.unbind();

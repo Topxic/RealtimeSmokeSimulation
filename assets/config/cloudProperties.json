@@ -1,0 +1,248 @@
+[
+    {
+        "name": "cloudColor",
+        "type": "vec3",
+        "value": [1.0, 1.0, 1.0],
+        "default": [1.0, 1.0, 1.0],
+        "min": 0.0,
+        "max": 1.0,
+        "role": "color"
+    },
+    {
+        "name": "absorption",
+        "type": "float",
+        "value": 70.0,
+        "default": 70.0,
+        "min": 0.0,
+        "max": 200.0,
+        "role": "default"
+    },
+    {
+        "name": "sampleStepSize",
+        "type": "float",
+        "value": 0.04,
+        "default": 0.04,
+        "min": 0.001,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "border",
+        "type": "float",
+        "value": 0.07,
+        "default": 0.07,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+
+    {
+        "name": "period",
+        "type": "float",
+        "value": 0.5,
+        "default": 0.5,
+        "min": 0.01,
+        "max": 10.0,
+        "role": "default"
+    },
+    {
+        "name": "voronoiResolution",
+        "type": "ivec3",
+        "value": [32, 32, 32],
+        "default": [32, 32, 32],
+        "min": 1,
+        "max": 256,
+        "role": "default"
+    },
+    {
+        "name": "c1",
+        "type": "float",
+        "value": 0.566,
+        "default": 0.566,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "c2",
+        "type": "float",
+        "value": 0.913,
+        "default": 0.913,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "c3",
+        "type": "float",
+        "value": 0.986,
+        "default": 0.986,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "fbmResolution",
+        "type": "ivec3",
+        "value": [32, 32, 32],
+        "default": [32, 32, 32],
+        "min": 1,
+        "max": 256,
+        "role": "default"
+    },
+    {
+        "name": "amplitude",
+        "type": "float",
+        "value": 1.0,
+        "default": 1.0,
+        "min": 0.0,
+        "max": 10.0,
+        "role": "default"
+    },
+    {
+        "name": "octaveCount",
+        "type": "int",
+        "value": 5,
+        "default": 5,
+        "min": 1,
+        "max": 16,
+        "role": "default"
+    },
+    {
+        "name": "persistence",
+        "type": "float",
+        "value": 0.5,
+        "default": 0.5,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "lacunarity",
+        "type": "float",
+        "value": 2.0,
+        "default": 2.0,
+        "min": 0.1,
+        "max": 10.0,
+        "role": "default"
+    },
+    {
+        "name": "scale",
+        "type": "float",
+        "value": 4.0,
+        "default": 4.0,
+        "min": 0.01,
+        "max": 100.0,
+        "role": "default"
+    },
+    {
+        "name": "seed",
+        "type": "int",
+        "value": 2309461,
+        "default": 2309461,
+        "min": 0,
+        "max": 999999999,
+        "role": "default"
+    },
+
+    {
+        "name": "henyeyGreen_G",
+        "type": "float",
+        "value": 0.9,
+        "default": 0.9,
+        "min": -1.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "henyeyGreen_K",
+        "type": "float",
+        "value": 0.8,
+        "default": 0.8,
+        "min": 0.0,
+        "max": 1.0,
+        "role": "default"
+    },
+    {
+        "name": "lightIntensity",
+        "type": "float",
+        "value": 40.0,
+        "default": 40.0,
+        "min": 0.0,
+        "max": 1000.0,
+        "role": "default"
+    },
+    {
+        "name": "lightPosition",
+        "type": "vec3",
+        "value": [8.0, 8.0, 0.0],
+        "default": [8.0, 8.0, 0.0],
+        "min": -100.0,
+        "max": 100.0,
+        "role": "default"
+    },
+    {
+        "name": "lightColor",
+        "type": "vec3",
+        "value": [0.9, 0.9, 0.5],
+        "default": [0.9, 0.9, 0.5],
+        "min": 0.0,
+        "max": 1.0,
+        "role": "color"
+    },
+    {
+        "name": "exposure",
+        "type": "float",
+        "value": 1.0,
+        "default": 1.0,
+        "min": 0.0,
+        "max": 10.0,
+        "role": "default"
+    },
+    {
+        "name": "gamma",
+        "type": "float",
+        "value": 2.2,
+        "default": 2.2,
+        "min": 0.1,
+        "max": 5.0,
+        "role": "default"
+    },
+
+    {
+        "name": "reloadVoronoi",
+        "type": "bool",
+        "value": false,
+        "default": false,
+        "min": "n/a",
+        "max": "n/a",
+        "role": "button"
+    },
+    {
+        "name": "reloadFBM",
+        "type": "bool",
+        "value": false,
+        "default": false,
+        "min": "n/a",
+        "max": "n/a",
+        "role": "button"
+    },
+    {
+        "name": "showVoronoi",
+        "type": "bool",
+        "value": false,
+        "default": false,
+        "min": "n/a",
+        "max": "n/a",
+        "role": "checkbox"
+    },
+    {
+        "name": "showTextureDepth",
+        "type": "bool",
+        "value": false,
+        "default": false,
+        "min": "n/a",
+        "max": "n/a",
+        "role": "checkbox"
+    }
+]
